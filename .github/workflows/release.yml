@@ -1,0 +1,163 @@
+name: Release Data Studio v2
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.1)'
+        required: true
+        default: '1.0.1'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install frontend dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Build frontend
+      working-directory: frontend
+      run: npm run build
+
+    - name: Build Rust backend
+      working-directory: backend
+      run: cargo build --release
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build complete package
+      run: python build_complete_package.py
+
+    - name: Build Electron App
+      working-directory: frontend
+      run: |
+        npm run electron:build
+        npm run electron:dist
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Data Studio v2 ${{ github.ref_name }}
+        body: |
+          ## 🚀 Data Studio v2 Release ${{ github.ref_name }}
+          
+          ### ✨ New Features
+          - Advanced data processing with Rust backend
+          - React-based modern UI
+          - Cross-platform Electron desktop app
+          - Workflow engine for data transformations
+          - Advanced formula support (SUMIFS, PIVOT, TEXT_JOIN)
+          
+          ### 🔧 Technical Improvements
+          - Rust backend for performance
+          - TypeScript frontend
+          - Tailwind CSS styling
+          - SQLite database integration
+          
+          ### 📦 Downloads
+          - Windows: `.exe` installer
+          - macOS: `.dmg` package
+          - Linux: `.AppImage` package
+          
+          ### 🐛 Bug Fixes
+          - Fixed UI rendering issues
+          - Improved navigation
+          - Enhanced error handling
+          
+          ### 📋 Installation
+          1. Download the appropriate package for your platform
+          2. Run the installer/package
+          3. Launch Data Studio v2
+          
+          ### 🔄 Auto-updates
+          The app will automatically check for updates and notify you when new versions are available.
+          
+          ### 📚 Documentation
+          - [Setup Guide](SETUP.md)
+          - [Cross-platform Build Guide](CROSS_PLATFORM_BUILD.md)
+          - [Integration Guide](INTEGRATION_GUIDE.md)
+          
+          ### 🤝 Contributing
+          We welcome contributions! Please see our contributing guidelines.
+          
+          ### 📄 License
+          MIT License - see LICENSE file for details.
+
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: frontend/dist/Data Studio v2 Setup.exe
+        asset_name: Data Studio v2 Setup.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload macOS DMG
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: frontend/dist/Data Studio v2.dmg
+        asset_name: Data Studio v2.dmg
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux AppImage
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: frontend/dist/Data Studio v2.AppImage
+        asset_name: Data Studio v2.AppImage
+        asset_content_type: application/octet-stream
+
+    - name: Update version in package.json
+      run: |
+        cd frontend
+        npm version ${{ github.ref_name }} --no-git-tag-version
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add package.json
+        git commit -m "Bump version to ${{ github.ref_name }}"
+        git push
+
+    - name: Notify release completion
+      run: |
+        echo "🎉 Release ${{ github.ref_name }} completed successfully!"
+        echo "📦 Assets uploaded to GitHub release"
+        echo "🔄 Auto-updates will be available to users"
