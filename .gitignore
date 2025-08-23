@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Build outputs (safe to ignore)
+build/
+dist/
+target/
+
+# OS and IDE files
+.DS_Store
+.vscode/
+.idea/
