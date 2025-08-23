@@ -85,7 +85,10 @@ jobs:
     - name: Build Electron App
       working-directory: frontend
       run: |
-        npm run dist
+        # Build React app first
+        npm run build
+        # Build Electron packages with minimal configuration
+        npx electron-builder --mac --win --linux --publish=never
 
     - name: Create Release
       id: create_release

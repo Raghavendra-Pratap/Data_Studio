@@ -116,7 +116,7 @@ def build_electron_package():
     frontend_dir = Path("frontend")
     
     # Build Electron packages for all platforms
-    if not run_command("npm run dist", cwd=frontend_dir):
+    if not run_command("npx electron-builder --mac --win --linux --publish=never", cwd=frontend_dir):
         print("❌ Electron build failed")
         return False
     
