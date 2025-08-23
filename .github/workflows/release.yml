@@ -85,8 +85,7 @@ jobs:
     - name: Build Electron App
       working-directory: frontend
       run: |
-        npm run electron:build
-        npm run electron:dist
+        npm run dist
 
     - name: Create Release
       id: create_release
@@ -171,15 +170,7 @@ jobs:
         asset_name: Data Studio v2.AppImage
         asset_content_type: application/octet-stream
 
-    - name: Update version in package.json
-      working-directory: frontend
-      run: |
-        npm version ${{ github.ref_name }} --no-git-tag-version
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add package.json
-        git commit -m "Bump version to ${{ github.ref_name }}"
-        git push
+    # Version bumping removed - we don't want to increment versions on main branch for test releases
 
     - name: Notify release completion
       run: |
