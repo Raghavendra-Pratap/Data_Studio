@@ -24,7 +24,7 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+        cache-dependency-path: unified-data-studio-v2/frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -33,15 +33,15 @@ jobs:
         override: true
 
     - name: Install frontend dependencies
-      working-directory: frontend
+      working-directory: unified-data-studio-v2/frontend
       run: npm ci
 
     - name: Build frontend
-      working-directory: frontend
+      working-directory: unified-data-studio-v2/frontend
       run: npm run build
 
     - name: Build Rust backend
-      working-directory: backend
+      working-directory: unified-data-studio-v2/backend
       run: cargo build --release
 
     - name: Setup Python
@@ -50,17 +50,17 @@ jobs:
         python-version: '3.9'
 
     - name: Install Python dependencies
-      working-directory: .
+      working-directory: unified-data-studio-v2
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
     - name: Build complete package
-      working-directory: .
+      working-directory: unified-data-studio-v2
       run: python build_complete_package.py
 
     - name: Build Electron App
-      working-directory: frontend
+      working-directory: unified-data-studio-v2/frontend
       run: |
         npm run electron:build
         npm run electron:dist
@@ -124,7 +124,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/Data Studio v2 Setup.exe
+        asset_path: unified-data-studio-v2/frontend/dist/Data Studio v2 Setup.exe
         asset_name: Data Studio v2 Setup.exe
         asset_content_type: application/octet-stream
 
@@ -134,7 +134,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/Data Studio v2.dmg
+        asset_path: unified-data-studio-v2/frontend/dist/Data Studio v2.dmg
         asset_name: Data Studio v2.dmg
         asset_content_type: application/octet-stream
 
@@ -144,12 +144,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/Data Studio v2.AppImage
+        asset_path: unified-data-studio-v2/frontend/dist/Data Studio v2.AppImage
         asset_name: Data Studio v2.AppImage
         asset_content_type: application/octet-stream
 
     - name: Update version in package.json
-      working-directory: frontend
+      working-directory: unified-data-studio-v2/frontend
       run: |
         npm version ${{ github.ref_name }} --no-git-tag-version
         git config --local user.email "action@github.com"
