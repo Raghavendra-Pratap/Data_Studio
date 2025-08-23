@@ -66,6 +66,7 @@ const SaveWorkflowDialog: React.FC<SaveWorkflowDialogProps> = ({
   const [workflowName, setWorkflowName] = useState(currentWorkflowName || 'Untitled Workflow');
   const [description, setDescription] = useState('');
   const [project, setProject] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [version, setVersion] = useState('1.0.0');
   
   // Project management

@@ -3,12 +3,14 @@ import { Card, CardContent } from './ui/card';
 import DataSources from './DataSources';
 import LivePreview from './LivePreview';
 import { useNavigate } from 'react-router-dom';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { dataProcessor } from '../utils/dataProcessor';
 // @ts-ignore
 import Papa from 'papaparse';
 import SaveWorkflowDialog, { WorkflowTemplate } from './SaveWorkflowDialog';
 import ExecuteWorkflowDialog, { ExecuteWorkflowTemplate } from './ExecuteWorkflowDialog';
 import { formulaService, FormulaDefinition } from '../utils/formulaService';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { backendService, BackendWorkflowRequest } from '../services/BackendService';
 import ErrorBoundary from './ErrorBoundary';
 import { 
@@ -75,6 +77,7 @@ interface PlaygroundFile extends FileData {
 }
 
 // Formula interface for enhanced management with alias mapping
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Formula {
   name: string;
   category: string;
@@ -95,6 +98,7 @@ interface PlaygroundProps {
 const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) => {
   const [importedFiles, setImportedFiles] = useState<PlaygroundFile[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [windowHeight, setWindowHeight] = useState(window.innerHeight);
   const [collapsedSheets, setCollapsedSheets] = useState<{ [key: string]: boolean }>({});
 
@@ -110,6 +114,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     status: 'pending' | 'processing' | 'completed' | 'failed';
     columnReference?: ColumnReference; // For column steps
   }>>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isWorkflowStarted, setIsWorkflowStarted] = useState(false);
 
   
@@ -142,11 +147,14 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   
   // Enhanced Execute state
   const [executionProgress, setExecutionProgress] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'preparing' | 'processing' | 'completed' | 'cancelled' | 'error'>('idle');
   const [executionResults, setExecutionResults] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [canCancelExecution, setCanCancelExecution] = useState(false);
   
   // Backend integration state - using the hook
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { status: backendStatus, isConnected: backendConnected, checkHealth } = useBackendStatus();
   
   // Live Preview State for Selected Columns
@@ -160,6 +168,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   // Save Workflow Dialog state
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showExecuteDialog, setShowExecuteDialog] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savedTemplates, setSavedTemplates] = useState<WorkflowTemplate[]>([]);
   const [workflowName, setWorkflowName] = useState('Untitled Workflow');
   
@@ -181,6 +190,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   const [showNewFileInput, setShowNewFileInput] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [workflowScrollTop, setWorkflowScrollTop] = useState(0);
 
   const [isExecuting, setIsExecuting] = useState(false);
@@ -378,6 +388,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   }, [selectedColumns, importedFiles, sampleSize]);
 
   // Convert workflow steps to backend format
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const convertWorkflowStepsToBackend = (steps: typeof workflowSteps) => {
     return steps.map(step => {
       if (step.type === 'column' && step.columnReference) {

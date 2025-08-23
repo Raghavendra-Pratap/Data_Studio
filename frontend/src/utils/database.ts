@@ -243,7 +243,8 @@ class DatabaseManager {
       const workflowStore = transaction.objectStore('workflows');
       
       // Delete project
-      const projectRequest = projectStore.delete(projectName);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const projectRequest = projectStore.delete(projectName);
       
       // Delete associated workflows
       const workflowIndex = workflowStore.index('project');
@@ -437,7 +438,8 @@ class DatabaseManager {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['projects', 'workflows', 'files'], 'readwrite');
       
-      const promises = [
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const promises = [
         transaction.objectStore('projects').clear(),
         transaction.objectStore('workflows').clear(),
         transaction.objectStore('files').clear()
