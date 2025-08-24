@@ -16,23 +16,43 @@ if os.name == 'nt':  # Windows
     try:
         # Set console to UTF-8 mode
         os.system('chcp 65001 > nul 2>&1')
+        # Force Python to use UTF-8 encoding
+        import sys
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+        # Also set environment variable
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
     except:
-        pass  # Ignore if this fails
+        # If all else fails, try to set encoding at the system level
+        try:
+            os.environ['PYTHONIOENCODING'] = 'utf-8'
+        except:
+            pass
+
+def safe_print(text):
+    """Safely print text, handling encoding issues on Windows"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Fallback: replace emojis with text equivalents
+        fallback_text = text.replace('🔄', '[RUNNING]').replace('📁', '[DIR]').replace('✅', '[SUCCESS]').replace('❌', '[ERROR]')
+        print(fallback_text)
 
 def run_command(command, cwd=None, check=True):
     """Run a shell command and return success status"""
-    print(f"🔄 Running: {command}")
+    safe_print(f"🔄 Running: {command}")
     if cwd:
-        print(f"📁 Working directory: {cwd}")
+        safe_print(f"📁 Working directory: {cwd}")
     
     try:
         result = subprocess.run(command, shell=True, check=check, capture_output=True, text=True, cwd=cwd)
         if result.stdout.strip():
-            print("✅ Success:")
+            safe_print("✅ Success:")
             print(result.stdout.strip())
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed: {e}")
+        safe_print(f"❌ Failed: {e}")
         if e.stdout.strip():
             print(f"stdout: {e.stdout.strip()}")
         if e.stderr.strip():
@@ -41,26 +61,26 @@ def run_command(command, cwd=None, check=True):
 
 def check_prerequisites():
     """Check if all required tools are installed"""
-    print("🔍 Checking prerequisites...")
+    safe_print("🔍 Checking prerequisites...")
     
     # Check Rust
     if not run_command("rustc --version", check=False):
-        print("❌ Rust is not installed. Please install Rust first.")
+        safe_print("❌ Rust is not installed. Please install Rust first.")
         print("   Visit: https://rustup.rs/")
         return False
     
     # Check Node.js
     if not run_command("node --version", check=False):
-        print("❌ Node.js is not installed. Please install Node.js first.")
+        safe_print("❌ Node.js is not installed. Please install Node.js first.")
         print("   Visit: https://nodejs.org/")
         return False
     
     # Check npm
     if not run_command("npm --version", check=False):
-        print("❌ npm is not installed. Please install npm first.")
+        safe_print("❌ npm is not installed. Please install npm first.")
         return False
     
-    print("✅ All prerequisites are satisfied")
+    safe_print("✅ All prerequisites are satisfied")
     return True
 
 def build_backend():

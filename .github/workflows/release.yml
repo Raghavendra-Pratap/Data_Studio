@@ -80,6 +80,7 @@ jobs:
 
     - name: Build complete package
       working-directory: .
+      shell: bash
       run: python build_complete_package.py
 
     - name: Build Electron App
