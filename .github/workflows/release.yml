@@ -164,6 +164,13 @@ jobs:
         echo "🎉 Package build for ${{ matrix.platform }} completed successfully!"
         echo "📦 Platform-specific package created"
         echo "🔄 Ready for release creation"
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.platform }}-packages
+        path: frontend/dist/
+        retention-days: 1
 
   # Job 2: Create release and upload all assets (runs after all builds complete)
   create-release:
@@ -177,6 +184,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Download all build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
     
     - name: Create Release
       id: create_release
@@ -231,14 +243,34 @@ jobs:
           ### 📄 License
           MIT License - see LICENSE file for details.
     
-    - name: Upload Release Assets
+    - name: Upload Linux Assets
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/
-        asset_name: ${{ matrix.platform }}-assets
+        asset_path: artifacts/ubuntu-latest-packages/
+        asset_name: linux-assets
+        asset_content_type: application/octet-stream
+    
+    - name: Upload Windows Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/windows-latest-packages/
+        asset_name: windows-assets
+        asset_content_type: application/octet-stream
+    
+    - name: Upload macOS Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/macos-latest-packages/
+        asset_name: macos-assets
         asset_content_type: application/octet-stream
     
     - name: Notify release completion
