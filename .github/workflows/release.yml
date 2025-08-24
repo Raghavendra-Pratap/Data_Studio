@@ -67,9 +67,17 @@ jobs:
         python -m pip install --upgrade pip
         echo "Current working directory: $(pwd)"
         echo "Listing files in current directory:"
-        ls -la
+        if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+          dir
+        else
+          ls -la
+        fi
         echo "Looking for requirements.txt:"
-        find . -name "requirements.txt" -type f
+        if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+          Get-ChildItem -Recurse -Name "requirements.txt"
+        else
+          find . -name "requirements.txt" -type f
+        fi
         echo "Installing Python dependencies:"
         pip install -r requirements.txt
 
