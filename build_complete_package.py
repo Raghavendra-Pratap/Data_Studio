@@ -11,6 +11,14 @@ import shutil
 from pathlib import Path
 import json
 
+# Fix Windows console encoding for emojis
+if os.name == 'nt':  # Windows
+    try:
+        # Set console to UTF-8 mode
+        os.system('chcp 65001 > nul 2>&1')
+    except:
+        pass  # Ignore if this fails
+
 def run_command(command, cwd=None, check=True):
     """Run a shell command and return success status"""
     print(f"🔄 Running: {command}")
