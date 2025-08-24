@@ -13,7 +13,10 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
     
     steps:
     - name: Checkout code
@@ -87,13 +90,17 @@ jobs:
       run: |
         # Build React app first
         npm run build
-        # Build Electron packages for each platform separately to avoid dependency issues
-        echo "Building for Windows..."
-        npx electron-builder --win --publish=never
-        echo "Building for Linux..."
-        npx electron-builder --linux --publish=never
-        echo "Building for macOS..."
-        npx electron-builder --mac --publish=never
+        # Build for current platform only
+        if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
+          echo "Building for Linux..."
+          npx electron-builder --linux --publish=never
+        elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+          echo "Building for Windows..."
+          npx electron-builder --win --publish=never
+        elif [ "${{ matrix.platform }}" = "macos-latest" ]; then
+          echo "Building for macOS..."
+          npx electron-builder --mac --publish=never
+        fi
 
     - name: Create Release
       id: create_release
@@ -154,28 +161,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/Data Studio v2 Setup.exe
-        asset_name: Data Studio v2 Setup.exe
-        asset_content_type: application/octet-stream
-
-    - name: Upload macOS DMG
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/Data Studio v2.dmg
-        asset_name: Data Studio v2.dmg
-        asset_content_type: application/octet-stream
-
-    - name: Upload Linux AppImage
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: frontend/dist/Data Studio v2.AppImage
-        asset_name: Data Studio v2.AppImage
+        asset_path: frontend/dist/
+        asset_name: ${{ matrix.platform }}-assets
         asset_content_type: application/octet-stream
 
     # Version bumping removed - we don't want to increment versions on main branch for test releases
