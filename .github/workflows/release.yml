@@ -187,15 +187,38 @@ jobs:
           ### 📄 License
           MIT License - see LICENSE file for details.
     
-    - name: Upload All Platform Assets
+    - name: List Artifacts Contents
+      run: |
+        echo "Listing artifacts directory contents:"
+        ls -la artifacts/
+        echo ""
+        echo "Ubuntu packages:"
+        ls -la artifacts/ubuntu-latest-packages/ || echo "No ubuntu packages found"
+        echo ""
+        echo "Windows packages:"
+        ls -la artifacts/windows-latest-packages/ || echo "No windows packages found"
+        echo ""
+        echo "macOS packages:"
+        ls -la artifacts/macos-latest-packages/ || echo "No macos packages found"
+    
+    - name: Create Release Assets Archive
+      run: |
+        echo "Creating release assets archive..."
+        cd artifacts
+        tar -czf ../release-assets.tar.gz .
+        cd ..
+        echo "Release assets archive created:"
+        ls -la release-assets.tar.gz
+    
+    - name: Upload Release Assets
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/
-        asset_name: all-platform-assets
-        asset_content_type: application/octet-stream
+        asset_path: release-assets.tar.gz
+        asset_name: all-platform-assets.tar.gz
+        asset_content_type: application/gzip
     
     - name: Notify release completion
       run: |
