@@ -74,11 +74,7 @@ jobs:
           ls -la
         fi
         echo "Looking for requirements.txt:"
-        if [ "${{ matrix.platform }}" = "windows-latest" ]; then
-          Get-ChildItem -Recurse -Name "requirements.txt"
-        else
-          find . -name "requirements.txt" -type f
-        fi
+        find . -name "requirements.txt" -type f
         echo "Installing Python dependencies:"
         pip install -r requirements.txt
 
