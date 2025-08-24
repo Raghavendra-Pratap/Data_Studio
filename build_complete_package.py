@@ -97,10 +97,18 @@ def build_backend():
         print("❌ Backend build failed")
         return False
     
-    # Check if binary was created
-    binary_path = backend_dir / "target" / "release" / "backend"
+    # Check if binary was created (handle Windows .exe extension)
+    binary_name = "backend.exe" if os.name == 'nt' else "backend"
+    binary_path = backend_dir / "target" / "release" / binary_name
     if not binary_path.exists():
-        print("❌ Backend binary not found after build")
+        print(f"❌ Backend binary not found after build at: {binary_path}")
+        # Try alternative paths for debugging
+        release_dir = backend_dir / "target" / "release"
+        if release_dir.exists():
+            print(f"Files in release directory:")
+            for file in release_dir.iterdir():
+                if file.is_file():
+                    print(f"  - {file.name}")
         return False
     
     # Get binary size
@@ -231,32 +239,34 @@ def create_standalone_package():
     
     package_dir.mkdir()
     
-    # Copy backend binary
-    backend_binary = Path("backend/target/release/backend")
+    # Copy backend binary (handle Windows .exe extension)
+    backend_name = "backend.exe" if os.name == 'nt' else "backend"
+    backend_binary = Path("backend/target/release") / backend_name
     if backend_binary.exists():
+        # Copy without extension for the package
         shutil.copy2(backend_binary, package_dir / "backend")
         os.chmod(package_dir / "backend", 0o755)
-        print("✅ Backend binary copied")
+        safe_print("✅ Backend binary copied")
     else:
-        print("❌ Backend binary not found")
+        safe_print(f"❌ Backend binary not found at: {backend_binary}")
         return False
     
     # Copy frontend build
     frontend_build = Path("frontend/build")
     if frontend_build.exists():
         shutil.copytree(frontend_build, package_dir / "build")
-        print("✅ Frontend build copied")
+        safe_print("✅ Frontend build copied")
     else:
-        print("❌ Frontend build not found")
+        safe_print("❌ Frontend build not found")
         return False
     
     # Copy Electron main process
     electron_main = Path("frontend/public/electron.js")
     if electron_main.exists():
         shutil.copy2(electron_main, package_dir / "electron.js")
-        print("✅ Electron main process copied")
+        safe_print("✅ Electron main process copied")
     else:
-        print("❌ Electron main process not found")
+        safe_print("❌ Electron main process not found")
         return False
     
     # Create package.json
@@ -272,7 +282,7 @@ def create_standalone_package():
     with open(package_dir / "package.json", "w") as f:
         json.dump(package_json, f, indent=2)
     
-    print("✅ Package.json created")
+    safe_print("✅ Package.json created")
     
     # Create startup script
     startup_script = """#!/bin/bash
@@ -293,7 +303,7 @@ echo "Application closed"
     startup_path = package_dir / "start.sh"
     startup_path.write_text(startup_script)
     os.chmod(startup_path, 0o755)
-    print("✅ Startup script created")
+    safe_print("✅ Startup script created")
     
     # Create README
     readme_content = """# Unified Data Studio v2 - Standalone Package
@@ -343,7 +353,7 @@ Built with ❤️ using Rust + React + Electron
     with open(package_dir / "README.md", "w") as f:
         f.write(readme_content)
     
-    print("✅ README created")
+    safe_print("✅ README created")
     
     # Get package size
     total_size = 0
@@ -352,7 +362,7 @@ Built with ❤️ using Rust + React + Electron
             total_size += file_path.stat().st_size
     
     size_mb = total_size / 1024 / 1024
-    print(f"✅ Standalone package created: {size_mb:.2f} MB")
+    safe_print(f"✅ Standalone package created: {size_mb:.2f} MB")
     
     return True
 
