@@ -17,6 +17,9 @@ jobs:
       matrix:
         platform: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
+      packages: write
     
     steps:
     - name: Checkout code
