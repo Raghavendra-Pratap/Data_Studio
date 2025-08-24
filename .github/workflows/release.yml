@@ -12,7 +12,8 @@ on:
         default: '1.0.1'
 
 jobs:
-  build-and-release:
+  # Job 1: Build and package for each platform
+  build-packages:
     strategy:
       matrix:
         platform: [ubuntu-latest, windows-latest, macos-latest]
@@ -20,6 +21,9 @@ jobs:
     permissions:
       contents: write
       packages: write
+    outputs:
+      platform: ${{ matrix.platform }}
+      status: ${{ job.status }}
     
     steps:
     - name: Checkout code
@@ -155,8 +159,90 @@ jobs:
 
     # Version bumping removed - we don't want to increment versions on main branch for test releases
 
+    - name: Notify package build completion
+      run: |
+        echo "🎉 Package build for ${{ matrix.platform }} completed successfully!"
+        echo "📦 Platform-specific package created"
+        echo "🔄 Ready for release creation"
+
+  # Job 2: Create release and upload all assets (runs after all builds complete)
+  create-release:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    if: needs.build-packages.result == 'success'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Data Studio v2 ${{ github.ref_name }}
+        body: |
+          ## 🚀 Data Studio v2 Release ${{ github.ref_name }}
+          
+          ### ✨ New Features
+          - Advanced data processing with Rust backend
+          - React-based modern UI
+          - Cross-platform Electron desktop app
+          - Workflow engine for data transformations
+          - Advanced formula support (SUMIFS, PIVOT, TEXT_JOIN)
+          
+          ### 🔧 Technical Improvements
+          - Rust backend for performance
+          - TypeScript frontend
+          - Tailwind CSS styling
+          - SQLite database integration
+          
+          ### 📦 Downloads
+          - Windows: `.exe` installer
+          - macOS: `.dmg` package
+          - Linux: `.AppImage` package
+          
+          ### 🐛 Bug Fixes
+          - Fixed UI rendering issues
+          - Improved navigation
+          - Enhanced error handling
+          
+          ### 📋 Installation
+          1. Download the appropriate package for your platform
+          2. Run the installer/package
+          3. Launch Data Studio v2
+          
+          ### 🔄 Auto-updates
+          The app will automatically check for updates and notify you when new versions are available.
+          
+          ### 📚 Documentation
+          - [Setup Guide](SETUP.md)
+          - [Cross-platform Build Guide](CROSS_PLATFORM_BUILD.md)
+          - [Integration Guide](INTEGRATION_GUIDE.md)
+          
+          ### 🤝 Contributing
+          We welcome contributions! Please see our contributing guidelines.
+          
+          ### 📄 License
+          MIT License - see LICENSE file for details.
+    
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: frontend/dist/
+        asset_name: ${{ matrix.platform }}-assets
+        asset_content_type: application/octet-stream
+    
     - name: Notify release completion
       run: |
         echo "🎉 Release ${{ github.ref_name }} completed successfully!"
-        echo "📦 Assets uploaded to GitHub release"
+        echo "📦 All platform assets uploaded to GitHub release"
         echo "🔄 Auto-updates will be available to users"

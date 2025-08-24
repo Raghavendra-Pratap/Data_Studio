@@ -115,23 +115,34 @@ def build_electron_package():
     
     frontend_dir = Path("frontend")
     
-    # Build Electron packages for each platform separately to avoid dependency issues
-    print("Building for Windows...")
-    if not run_command("npx electron-builder --win --publish=never", cwd=frontend_dir):
-        print("❌ Windows build failed")
-        return False
+        # Build Electron packages for current platform only
+    import platform
+    import os
     
-    print("Building for Linux...")
-    if not run_command("npx electron-builder --linux --publish=never", cwd=frontend_dir):
-        print("❌ Linux build failed")
-        return False
+    # Determine current platform
+    current_platform = platform.system().lower()
+    print(f"Current platform detected: {current_platform}")
     
+    if current_platform == "linux":
+        print("Building for Linux...")
+        if not run_command("npx electron-builder --linux --publish=never", cwd=frontend_dir):
+            print("❌ Linux build failed")
+            return False
+    elif current_platform == "windows":
+        print("Building for Windows...")
+        if not run_command("npx electron-builder --win --publish=never", cwd=frontend_dir):
+            print("❌ Windows build failed")
+            return False
+    elif current_platform == "darwin":  # macOS
         print("Building for macOS...")
-    if not run_command("npx electron-builder --mac --publish=never", cwd=frontend_dir):
-        print("❌ macOS build failed")
+        if not run_command("npx electron-builder --mac --publish=never", cwd=frontend_dir):
+            print("❌ macOS build failed")
+            return False
+    else:
+        print(f"❌ Unsupported platform: {current_platform}")
         return False
     
-    print("✅ All platform builds completed successfully")
+    print(f"✅ {current_platform.capitalize()} build completed successfully")
     return True
     
     # Check if packages were created
