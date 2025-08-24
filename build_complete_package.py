@@ -279,7 +279,7 @@ def create_standalone_package():
         "license": "MIT"
     }
     
-    with open(package_dir / "package.json", "w") as f:
+    with open(package_dir / "package.json", "w", encoding='utf-8') as f:
         json.dump(package_json, f, indent=2)
     
     safe_print("✅ Package.json created")
@@ -301,7 +301,7 @@ echo "Application closed"
 """
     
     startup_path = package_dir / "start.sh"
-    startup_path.write_text(startup_script)
+    startup_path.write_text(startup_script, encoding='utf-8')
     os.chmod(startup_path, 0o755)
     safe_print("✅ Startup script created")
     
@@ -350,7 +350,7 @@ npx electron .
 Built with ❤️ using Rust + React + Electron
 """
     
-    with open(package_dir / "README.md", "w") as f:
+    with open(package_dir / "README.md", "w", encoding='utf-8') as f:
         f.write(readme_content)
     
     safe_print("✅ README created")
