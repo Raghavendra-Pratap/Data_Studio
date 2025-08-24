@@ -187,34 +187,14 @@ jobs:
           ### 📄 License
           MIT License - see LICENSE file for details.
     
-    - name: Upload Linux Assets
+    - name: Upload All Platform Assets
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ubuntu-latest-packages/
-        asset_name: linux-assets
-        asset_content_type: application/octet-stream
-    
-    - name: Upload Windows Assets
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/windows-latest-packages/
-        asset_name: windows-assets
-        asset_content_type: application/octet-stream
-    
-    - name: Upload macOS Assets
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/macos-latest-packages/
-        asset_name: macos-assets
+        asset_path: artifacts/
+        asset_name: all-platform-assets
         asset_content_type: application/octet-stream
     
     - name: Notify release completion
