@@ -22,22 +22,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Debug repository structure
-      run: |
-        echo "=== Repository Structure Debug ==="
-        echo "Current working directory: $(pwd)"
-        echo "Root directory contents:"
-        ls -la
-        echo ""
-        echo "Looking for key files:"
-        echo "requirements.txt exists: $([ -f requirements.txt ] && echo 'YES' || echo 'NO')"
-        echo "build_complete_package.py exists: $([ -f build_complete_package.py ] && echo 'YES' || echo 'NO')"
-        echo "frontend/ exists: $([ -d frontend ] && echo 'YES' || echo 'NO')"
-        echo "backend/ exists: $([ -d backend ] && echo 'YES' || echo 'NO')"
-        echo ""
-        echo "Full directory tree (first 3 levels):"
-        find . -maxdepth 3 -type d | head -20
-        echo "=== End Debug ==="
+    # Debug step removed - main issues have been identified and fixed
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
