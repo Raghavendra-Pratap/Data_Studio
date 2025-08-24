@@ -87,8 +87,13 @@ jobs:
       run: |
         # Build React app first
         npm run build
-        # Build Electron packages with minimal configuration
-        npx electron-builder --mac --win --linux --publish=never
+        # Build Electron packages for each platform separately to avoid dependency issues
+        echo "Building for Windows..."
+        npx electron-builder --win --publish=never
+        echo "Building for Linux..."
+        npx electron-builder --linux --publish=never
+        echo "Building for macOS..."
+        npx electron-builder --mac --publish=never
 
     - name: Create Release
       id: create_release

@@ -115,10 +115,24 @@ def build_electron_package():
     
     frontend_dir = Path("frontend")
     
-    # Build Electron packages for all platforms
-    if not run_command("npx electron-builder --mac --win --linux --publish=never", cwd=frontend_dir):
-        print("❌ Electron build failed")
+    # Build Electron packages for each platform separately to avoid dependency issues
+    print("Building for Windows...")
+    if not run_command("npx electron-builder --win --publish=never", cwd=frontend_dir):
+        print("❌ Windows build failed")
         return False
+    
+    print("Building for Linux...")
+    if not run_command("npx electron-builder --linux --publish=never", cwd=frontend_dir):
+        print("❌ Linux build failed")
+        return False
+    
+        print("Building for macOS...")
+    if not run_command("npx electron-builder --mac --publish=never", cwd=frontend_dir):
+        print("❌ macOS build failed")
+        return False
+    
+    print("✅ All platform builds completed successfully")
+    return True
     
     # Check if packages were created
     dist_dir = Path("dist")
