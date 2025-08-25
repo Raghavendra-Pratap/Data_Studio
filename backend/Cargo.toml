@@ -1,6 +1,6 @@
 [package]
 name = "unified-data-studio-backend"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2021"
 authors = ["Unified Data Studio Team"]
 description = "High-performance backend for Unified Data Studio v2"

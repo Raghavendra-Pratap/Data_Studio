@@ -41,6 +41,13 @@ const TestDashboard = () => (
         <div>✅ Real-time Backend</div>
         <div>✅ Cross-platform</div>
       </div>
+      
+      {/* Version Information */}
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="text-center">
+          <span className="text-xs text-gray-500">Version 2.0.0</span>
+        </div>
+      </div>
     </div>
   </div>
 );

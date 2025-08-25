@@ -98,7 +98,15 @@ export class AutoUpdaterService {
   }
 
   private getCurrentVersion(): string {
-    return '1.0.0';
+    // Import version from centralized version file
+    try {
+      // Dynamic import to avoid build issues
+      const versionModule = require('../version');
+      return versionModule.APP_VERSION || '2.0.0';
+    } catch (error) {
+      console.warn('Could not load version from version.ts, using fallback');
+      return '2.0.0';
+    }
   }
 
   private isNewerVersion(newVersion: string, currentVersion: string): boolean {
