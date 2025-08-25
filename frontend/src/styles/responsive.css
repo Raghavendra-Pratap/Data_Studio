@@ -1,0 +1,470 @@
+/* Responsive Design System for Unified Data Studio v2 */
+/* Desktop-first approach with fluid layouts */
+
+/* ===== CSS Custom Properties (CSS Variables) ===== */
+:root {
+  /* Base spacing units */
+  --spacing-xs: 0.25rem;    /* 4px */
+  --spacing-sm: 0.5rem;     /* 8px */
+  --spacing-md: 1rem;       /* 16px */
+  --spacing-lg: 1.5rem;     /* 24px */
+  --spacing-xl: 2rem;       /* 32px */
+  --spacing-2xl: 3rem;      /* 48px */
+  --spacing-3xl: 4rem;      /* 64px */
+
+  /* Fluid typography */
+  --font-size-xs: clamp(0.75rem, 1vw, 0.875rem);    /* 12px - 14px */
+  --font-size-sm: clamp(0.875rem, 1.2vw, 1rem);     /* 14px - 16px */
+  --font-size-base: clamp(1rem, 1.5vw, 1.125rem);   /* 16px - 18px */
+  --font-size-lg: clamp(1.125rem, 2vw, 1.25rem);    /* 18px - 20px */
+  --font-size-xl: clamp(1.25rem, 2.5vw, 1.5rem);    /* 20px - 24px */
+  --font-size-2xl: clamp(1.5rem, 3vw, 2rem);        /* 24px - 32px */
+  --font-size-3xl: clamp(2rem, 4vw, 2.5rem);        /* 32px - 40px */
+
+  /* Layout breakpoints */
+  --breakpoint-sm: 1366px;   /* Small laptop minimum */
+  --breakpoint-md: 1440px;   /* Standard laptop */
+  --breakpoint-lg: 1920px;   /* Large laptop */
+  --breakpoint-xl: 2560px;   /* Desktop monitor */
+  --breakpoint-2xl: 3440px;  /* Ultra-wide */
+
+  /* Container max-widths */
+  --container-sm: 90vw;
+  --container-md: 85vw;
+  --container-lg: 80vw;
+  --container-xl: 75vw;
+  --container-2xl: 70vw;
+
+  /* Component sizing */
+  --sidebar-width: clamp(250px, 20vw, 350px);
+  --header-height: clamp(60px, 8vh, 80px);
+  --card-min-width: clamp(280px, 25vw, 400px);
+  --panel-min-width: clamp(300px, 30vw, 500px);
+}
+
+/* ===== Base Responsive Layout ===== */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* ===== Responsive Container System ===== */
+.container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+.container-sm { max-width: var(--container-sm); }
+.container-md { max-width: var(--container-md); }
+.container-lg { max-width: var(--container-lg); }
+.container-xl { max-width: var(--container-xl); }
+.container-2xl { max-width: var(--container-2xl); }
+
+/* ===== Responsive Grid System ===== */
+.grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-cols-5 { grid-template-columns: repeat(5, 1fr); }
+.grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
+
+/* ===== Responsive Flexbox Utilities ===== */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-nowrap { flex-wrap: nowrap; }
+
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.items-stretch { align-items: stretch; }
+
+.justify-center { justify-content: center; }
+.justify-start { justify-content: flex-start; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+.justify-around { justify-content: space-around; }
+
+/* ===== Responsive Spacing ===== */
+.p-xs { padding: var(--spacing-xs); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+.p-xl { padding: var(--spacing-xl); }
+
+.px-xs { padding-left: var(--spacing-xs); padding-right: var(--spacing-xs); }
+.px-sm { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+.px-md { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
+.px-lg { padding-left: var(--spacing-lg); padding-right: var(--spacing-lg); }
+.px-xl { padding-left: var(--spacing-xl); padding-right: var(--spacing-xl); }
+
+.py-xs { padding-top: var(--spacing-xs); padding-bottom: var(--spacing-xs); }
+.py-sm { padding-top: var(--spacing-sm); padding-bottom: var(--spacing-sm); }
+.py-md { padding-top: var(--spacing-md); padding-bottom: var(--spacing-md); }
+.py-lg { padding-top: var(--spacing-lg); padding-bottom: var(--spacing-lg); }
+.py-xl { padding-top: var(--spacing-xl); padding-bottom: var(--spacing-xl); }
+
+.m-xs { margin: var(--spacing-xs); }
+.m-sm { margin: var(--spacing-sm); }
+.m-md { margin: var(--spacing-md); }
+.m-lg { margin: var(--spacing-lg); }
+.m-xl { margin: var(--spacing-xl); }
+
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* ===== Responsive Typography ===== */
+.text-xs { font-size: var(--font-size-xs); }
+.text-sm { font-size: var(--font-size-sm); }
+.text-base { font-size: var(--font-size-base); }
+.text-lg { font-size: var(--font-size-lg); }
+.text-xl { font-size: var(--font-size-xl); }
+.text-2xl { font-size: var(--font-size-2xl); }
+.text-3xl { font-size: var(--font-size-3xl); }
+
+/* ===== Responsive Breakpoint System ===== */
+
+/* Small Laptop (1366px and below) */
+@media (max-width: 1366px) {
+  :root {
+    --sidebar-width: 250px;
+    --header-height: 60px;
+    --card-min-width: 280px;
+    --panel-min-width: 300px;
+  }
+  
+  .container { max-width: var(--container-sm); }
+  
+  /* Adjust grid for smaller screens */
+  .grid-cols-4, .grid-cols-5, .grid-cols-6 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  /* Make existing UI responsive */
+  .max-w-4xl { max-width: 90vw; }
+  .p-8 { padding: var(--spacing-lg); }
+  .text-4xl { font-size: clamp(2rem, 4vw, 2.5rem); } /* Constrain growth */
+  .text-2xl { font-size: clamp(1.5rem, 3vw, 1.75rem); } /* Constrain growth */
+  .text-xl { font-size: clamp(1.25rem, 2.5vw, 1.5rem); } /* Constrain growth */
+}
+
+/* Standard Laptop (1440px and below) */
+@media (max-width: 1440px) {
+  :root {
+    --sidebar-width: 280px;
+    --header-height: 70px;
+    --card-min-width: 320px;
+    --panel-min-width: 350px;
+  }
+  
+  .container { max-width: var(--container-md); }
+  
+  /* Adjust grid for medium screens */
+  .grid-cols-5, .grid-cols-6 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  /* Make existing UI responsive */
+  .max-w-4xl { max-width: 85vw; }
+  .p-8 { padding: var(--spacing-xl); }
+}
+
+/* Large Laptop (1920px and below) */
+@media (max-width: 1920px) {
+  :root {
+    --sidebar-width: 300px;
+    --header-height: 75px;
+    --card-min-width: 350px;
+    --panel-min-width: 400px;
+  }
+  
+  .container { max-width: var(--container-lg); }
+}
+
+/* Desktop Monitor (2560px and below) */
+@media (max-width: 2560px) {
+  :root {
+    --sidebar-width: 320px;
+    --header-height: 80px;
+    --card-min-width: 380px;
+    --panel-min-width: 450px;
+  }
+  
+  .container { max-width: var(--container-xl); }
+}
+
+/* Ultra-wide (3440px and above) */
+@media (min-width: 3440px) {
+  :root {
+    --sidebar-width: 350px;
+    --header-height: 80px;
+    --card-min-width: 400px;
+    --panel-min-width: 500px;
+  }
+  
+  .container { max-width: var(--container-2xl); }
+  
+  /* Optimize for ultra-wide screens */
+  .grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* ===== Responsive Component Classes ===== */
+
+/* Make existing UI components responsive */
+.bg-white {
+  min-width: var(--card-min-width);
+  transition: all 0.3s ease;
+}
+
+.bg-white:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Responsive Cards */
+.card {
+  min-width: var(--card-min-width);
+  padding: var(--spacing-md);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Responsive Panels */
+.panel {
+  min-width: var(--panel-min-width);
+  padding: var(--spacing-lg);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: 250px; /* Minimum threshold */
+  height: 100vh;
+  background: #f8f9fa;
+  border-right: 1px solid #e9ecef;
+  transition: width 0.3s ease;
+}
+
+/* Responsive Header */
+.header {
+  height: var(--header-height);
+  min-height: 60px; /* Minimum threshold */
+  padding: 0 var(--spacing-lg);
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Responsive Navigation */
+.nav {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.nav-item {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.nav-item:hover {
+  background: #f1f3f4;
+}
+
+/* Responsive Buttons */
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: 40px; /* Minimum touch target */
+}
+
+.btn-sm { padding: var(--spacing-xs) var(--spacing-sm); }
+.btn-lg { padding: var(--spacing-md) var(--spacing-lg); }
+
+/* Fix for existing button classes to prevent exponential growth */
+.inline-block {
+  max-width: 200px; /* Prevent buttons from growing too wide */
+  min-width: 120px; /* Maintain minimum button size */
+}
+
+/* Constrain button growth on larger screens */
+@media (min-width: 1920px) {
+  .inline-block {
+    max-width: 250px; /* Slight increase but not exponential */
+  }
+}
+
+/* Responsive Forms */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: var(--font-size-base);
+  transition: border-color 0.2s ease;
+  min-height: 40px; /* Minimum touch target */
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Responsive Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.table th {
+  background: #f8f9fa;
+  font-weight: 600;
+}
+
+/* Responsive Modals */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== Utility Classes ===== */
+
+/* Responsive visibility */
+.hidden-sm { display: none; }
+.hidden-md { display: none; }
+.hidden-lg { display: none; }
+
+@media (max-width: 1366px) {
+  .hidden-sm { display: block; }
+  .visible-sm { display: none; }
+}
+
+@media (max-width: 1440px) {
+  .hidden-md { display: block; }
+  .visible-md { display: none; }
+}
+
+@media (max-width: 1920px) {
+  .hidden-lg { display: block; }
+  .visible-lg { display: none; }
+}
+
+/* Responsive text alignment */
+.text-center-sm { text-align: center; }
+.text-left-sm { text-align: left; }
+.text-right-sm { text-align: right; }
+
+@media (min-width: 1440px) {
+  .text-center-lg { text-align: center; }
+  .text-left-lg { text-align: left; }
+  .text-right-lg { text-align: right; }
+}
+
+/* ===== Responsive Layout Component ===== */
+.responsive-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+.responsive-layout .header {
+  flex-shrink: 0;
+}
+
+.responsive-layout .flex-1 {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ===== Print Styles ===== */
+@media print {
+  .sidebar,
+  .header,
+  .btn,
+  .nav {
+    display: none !important;
+  }
+  
+  .container {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  
+  body {
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+  }
+}

@@ -127,7 +127,7 @@ export class AutoUpdaterService {
     window.dispatchEvent(event);
 
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Data Studio Update Available', {
+              new Notification('Unified Data Studio Update Available', {
         body: `Version ${updateInfo.version} is available for download`,
         icon: '/favicon.ico'
       });

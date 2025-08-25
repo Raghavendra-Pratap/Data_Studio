@@ -46,6 +46,8 @@ interface WorkspaceProps {
   dataPreviewHeight: number;
   selectedColumns: string[];
   selectedFiles: string[];
+  setSelectedColumns: (columns: string[]) => void;
+  setSelectedFiles: (files: string[]) => void;
   handleColumnClick: (columnPath: string) => void;
   handleFileClick: (fileName: string) => void;
   collapsedSheets: { [key: string]: boolean };
@@ -72,6 +74,8 @@ const Workspace: React.FC<WorkspaceProps> = ({
   dataPreviewHeight,
   selectedColumns,
   selectedFiles,
+  setSelectedColumns,
+  setSelectedFiles,
   handleColumnClick,
   handleFileClick,
   collapsedSheets,
@@ -98,9 +102,11 @@ const Workspace: React.FC<WorkspaceProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Calculate heights dynamically - 50% for top section, 50% for data preview
-  const topSectionHeight = Math.floor((windowHeight - 200) * 0.5); // 50% for top section
-  const bottomSectionHeight = Math.floor((windowHeight - 200) * 0.5); // 50% for data preview
+  // Calculate heights dynamically - 50/50 split with proper workflow navigation consideration
+  const workflowNavHeight = 80; // Height of workflow steps navigation
+  const availableHeight = windowHeight - workflowNavHeight - 48; // 48px for padding and borders
+  const topSectionHeight = Math.floor(availableHeight * 0.5); // 50% for top section (Data Sources + Tools)
+  const bottomSectionHeight = Math.floor(availableHeight * 0.5); // 50% for Data Preview
   const steps = [
     { id: 'import', icon: Upload, label: 'Import' },
     { id: 'clean', icon: Database, label: 'Clean' },
@@ -142,47 +148,49 @@ const Workspace: React.FC<WorkspaceProps> = ({
   ];
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col" style={{ height: '100vh', overflow: 'hidden' }}>
       {/* Workflow Steps */}
       <div className="bg-white border-b">
-        <div className="flex justify-between px-6 py-3">
+        <div className="flex justify-between px-3 md:px-6 py-2 md:py-3">
           {steps.map((step) => (
             <div
               key={step.id}
               onClick={() => setActiveStep(step.id)}
-              className={`flex flex-col items-center p-3 cursor-pointer rounded-lg transition-colors
+              className={`flex flex-col items-center p-2 md:p-3 cursor-pointer rounded-lg transition-colors
                 ${activeStep === step.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}
             >
-              <step.icon className="w-5 h-5 mb-1" />
-              <span className="text-sm">{step.label}</span>
+              <step.icon className="w-4 h-4 md:w-5 md:h-5 mb-1" />
+              <span className="text-xs md:text-sm">{step.label}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Workspace Content */}
-      <div className="flex-1 p-6 overflow-hidden">
-        <div className="grid grid-cols-12 gap-6 top-section-container" style={{ height: `${topSectionHeight -10 }px` }}>
+      <div className="flex-1 p-4 md:p-6 overflow-hidden">
+        <div className="grid grid-cols-12 gap-4 md:gap-6 top-section-container" style={{ height: `${topSectionHeight}px`, maxHeight: `${topSectionHeight}px` }}>
           {activeStep === 'import' && (
             <>
               {/* Left Panel - Data Sources */}
-              <div className="col-span-3 h-full">
-                <DataSources
-                  importedFiles={importedFiles}
-                  onBrowseFiles={handleBrowseFiles}
-                  onDragDropImport={handleDragDropImport}
-                  onDeleteFile={handleDeleteFile}
-                  height={topSectionHeight - 10}
-                  showDeleteButton={true}
-                  showHeaderConfig={true}
-                />
+              <div className="col-span-12 lg:col-span-3 h-full overflow-hidden">
+                <div className="h-full" style={{ maxHeight: `${topSectionHeight}px` }}>
+                  <DataSources
+                    importedFiles={importedFiles}
+                    onBrowseFiles={handleBrowseFiles}
+                    onDragDropImport={handleDragDropImport}
+                    onDeleteFile={handleDeleteFile}
+                    height={topSectionHeight}
+                    showDeleteButton={true}
+                    showHeaderConfig={true}
+                  />
+                </div>
               </div>
 
               {/* Center Panel - Import Tools */}
-              <Card className="col-span-6 h-full">
-                <CardContent className="p-4 h-full flex flex-col">
+              <Card className="col-span-12 lg:col-span-6 h-full overflow-hidden">
+                <CardContent className="p-4 h-full flex flex-col" style={{ maxHeight: `${topSectionHeight}px` }}>
                   <h3 className="font-semibold mb-4 flex-shrink-0">Import Options</h3>
-                  <div className="flex-1 overflow-y-auto pr-2">
+                  <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: `${topSectionHeight - 80}px` }}>
                     <div className="grid grid-cols-2 gap-4">
                       <div 
                         onClick={() => handleBrowseFiles()}
@@ -237,13 +245,13 @@ const Workspace: React.FC<WorkspaceProps> = ({
               </Card>
 
               {/* Right Panel - Import Properties */}
-              <Card className="col-span-3 h-full">
-                <CardContent className="p-4 h-full flex flex-col">
+              <Card className="col-span-12 lg:col-span-3 h-full overflow-hidden">
+                <CardContent className="p-4 h-full flex flex-col" style={{ maxHeight: `${topSectionHeight}px` }}>
                   <h3 className="font-semibold mb-4 flex items-center flex-shrink-0">
                     <Settings className="w-4 h-4 mr-2" />
                     Import Properties
                   </h3>
-                  <div className="flex-1 overflow-y-auto pr-2">
+                  <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: `${topSectionHeight - 80}px` }}>
                     <div className="space-y-4">
                       <div>
                         <label className="text-sm font-medium">File Encoding</label>
@@ -622,88 +630,107 @@ const Workspace: React.FC<WorkspaceProps> = ({
       </div>
 
       {/* Clear separation line */}
-      <div className="w-full h-px bg-gray-300 my-2"></div>
+      <div className="w-full h-px bg-gray-300 my-4"></div>
 
-      {/* Data Preview Section - Dynamic Height (50% of screen) */}
-      <div className="mt-2 data-preview-section" style={{ height: `${bottomSectionHeight}px` }}>
-        <Card className="h-full">
-          <CardContent className="p-3 h-full">
-            {/* Preview Header with Mode Toggle */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-4">
-                <h3 className="font-semibold flex items-center">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Data Preview
-                </h3>
-                
-                {/* Preview Mode Toggle */}
-                <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setPreviewMode('structure')}
-                    className={`p-2 rounded-md transition-colors ${
-                      previewMode === 'structure' 
-                        ? 'bg-white text-blue-600 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-800'
-                    }`}
-                    title="File Structure View"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setPreviewMode('live')}
-                    className={`p-2 rounded-md transition-colors ${
-                      previewMode === 'live' 
-                        ? 'bg-white text-green-600 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-800'
-                    }`}
-                    title="Live Preview"
-                  >
-                    <Play className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                {/* Sample Size Selector for Live Preview */}
-                {previewMode === 'live' && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Sample:</span>
-                    <select
-                      value={sampleSize}
-                      onChange={(e) => setSampleSize(Number(e.target.value) as 10 | 50 | 100)}
-                      className="text-sm border rounded px-2 py-1 bg-white"
-                    >
-                      <option value={10}>10 rows</option>
-                      <option value={50}>50 rows</option>
-                      <option value={100}>100 rows</option>
-                    </select>
+      {/* Data Preview Section - Enhanced to match Playground */}
+      <div className="data-preview-section" style={{ height: `${bottomSectionHeight}px`, maxHeight: `${bottomSectionHeight}px` }}>
+        <Card className="h-full overflow-hidden">
+          <CardContent className="p-2 h-full" style={{ maxHeight: `${bottomSectionHeight}px` }}>
+            {/* Clickable Header - Switches between Data Preview and Live Preview */}
+            <div 
+              onClick={() => setPreviewMode(previewMode === 'structure' ? 'live' : 'structure')}
+              className={`cursor-pointer transition-all duration-200 rounded-lg p-2 mb-2 ${
+                previewMode === 'structure' 
+                  ? 'bg-blue-50 border border-blue-200 hover:bg-blue-100' 
+                  : 'bg-green-50 border border-green-200 hover:bg-green-100'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                {/* Left: Header with Icon and Title */}
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-lg ${
+                    previewMode === 'structure' 
+                      ? 'bg-blue-100 text-blue-600' 
+                      : 'bg-green-100 text-green-600'
+                  }`}>
+                    {previewMode === 'structure' ? (
+                      <Eye className="w-5 h-5" />
+                    ) : (
+                      <Play className="w-5 h-5" />
+                    )}
                   </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
-                  {importedFiles.length} file{importedFiles.length !== 1 ? 's' : ''} selected
-                </span>
-                <span className="text-sm text-gray-600">Last saved: {formatTimeAgo(lastSaved)}</span>
-                {(selectedColumns.length > 0 || selectedFiles.length > 0) && (
-                  <button 
-                    onClick={() => {
-                      // Clear selections logic would go here
-                    }}
-                    className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm transition-colors"
-                  >
-                    Clear All
-                  </button>
-                )}
-                <button 
-                  onClick={onNavigateToPlayground || handleSaveChanges}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
-                  title="Save changes and go to Playground"
-                >
-                  <span>Save & Go to Playground</span>
-                  <ArrowLeft className="w-4 h-4 rotate-180" />
-                </button>
+                  <div>
+                    <h3 className={`font-semibold ${
+                      previewMode === 'structure' ? 'text-blue-800' : 'text-green-800'
+                    }`}>
+                      {previewMode === 'structure' 
+                        ? 'Data Preview - Clickable Columns & Files'
+                        : 'Live Preview - Workflow Results'
+                      }
+                    </h3>
+                    <p className={`text-sm ${
+                      previewMode === 'structure' ? 'text-blue-600' : 'text-green-600'
+                    }`}>
+                      {previewMode === 'structure' 
+                        ? 'Click columns to add to workflow, or click "Select File" to add entire files'
+                        : 'Real-time preview of workflow execution results'
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right: Controls based on mode */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                  {previewMode === 'structure' ? (
+                    // Data Preview Controls
+                    <>
+                      <span className="text-sm text-blue-600">
+                        Click columns to add to workflow
+                      </span>
+                      {(selectedColumns.length > 0 || selectedFiles.length > 0) && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedColumns([]);
+                            setSelectedFiles([]);
+                          }}
+                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm transition-colors"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    // Live Preview Controls
+                    <>
+                      {/* Status Indicator */}
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="text-sm font-medium text-green-700">
+                          Preview Ready
+                        </span>
+                      </div>
+
+                      {/* Sample Size Dropdown */}
+                      <div className="relative">
+                        <select
+                          value={sampleSize}
+                          onChange={(e) => setSampleSize(Number(e.target.value) as 10 | 50 | 100)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-3 py-1 text-sm border border-green-200 rounded-md bg-white text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        >
+                          <option value={10}>10 rows</option>
+                          <option value={50}>50 rows</option>
+                          <option value={100}>100 rows</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
+            
+
             
             {/* Preview Content */}
             {previewMode === 'structure' ? (

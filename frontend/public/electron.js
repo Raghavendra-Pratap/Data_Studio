@@ -27,7 +27,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, 'icon.icns'),
-    titleBarStyle: 'hiddenInset', // macOS style
+    titleBarStyle: process.platform === 'darwin' ? 'default' : 'hidden', // Fix macOS overlap
     show: true, // Show immediately for testing
     backgroundColor: '#ffffff'
   });

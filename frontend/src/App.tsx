@@ -1,58 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
+import './styles/responsive.css';
 import AppLayout from './components/AppLayout';
 import Playground from './components/Playground';
+import LoadingPlaceholder from './components/LoadingPlaceholder';
 import ErrorBoundary from './components/ErrorBoundary';
 import { databaseManager } from './utils/database';
 import { BackendStatusProvider } from './contexts/BackendContext';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Simple dashboard component for the home page
-const TestDashboard = () => (
-  <div className="p-8 text-center bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <h1 className="text-4xl font-bold mb-6 text-gray-800">Data Studio v2</h1>
-    <p className="text-xl mb-8 text-gray-600">Advanced data processing and workflow management platform</p>
-    
-    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-        <h2 className="text-2xl font-semibold mb-3 text-gray-800">🚀 Dashboard</h2>
-        <p className="text-gray-600 mb-4">Manage your projects, workflows, and data sources</p>
-        <a href="#/dashboard" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-          Go to Dashboard
-        </a>
-      </div>
-      
-      <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-        <h2 className="text-2xl font-semibold mb-3 text-gray-800">🎯 Playground</h2>
-        <p className="text-gray-600 mb-4">Test formulas, workflows, and data processing</p>
-        <a href="#/playground" className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
-          Go to Playground
-        </a>
-      </div>
-    </div>
-    
-    <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
-      <h3 className="text-lg font-semibold mb-3 text-gray-800">Features</h3>
-      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-        <div>✅ Advanced Formulas</div>
-        <div>✅ Workflow Engine</div>
-        <div>✅ Data Processing</div>
-        <div>✅ Project Management</div>
-        <div>✅ Real-time Backend</div>
-        <div>✅ Cross-platform</div>
-      </div>
-      
-      {/* Version Information */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="text-center">
-          <span className="text-xs text-gray-500">Version 2.0.0</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  // const [isInitialized, setIsInitialized] = useState(false); // Not currently used
+  
   console.log('🚀 App component rendering...'); // Debug log
   
   useEffect(() => {
@@ -63,6 +25,7 @@ function App() {
         await databaseManager.initializeDatabase();
         
         console.log('✅ App: Database initialization completed successfully');
+        // setIsInitialized(true); // Not currently used
         
       } catch (error) {
         console.error('❌ App: Database initialization failed:', error);
@@ -73,6 +36,11 @@ function App() {
             stack: error.stack
           });
         }
+        // Even if database fails, we can still show the app
+        // setIsInitialized(true); // Not currently used
+      } finally {
+        // Simulate minimum loading time for better UX
+        setTimeout(() => setIsLoading(false), 1500);
       }
     };
 
@@ -81,16 +49,21 @@ function App() {
     initializeApp();
   }, []);
   
+    // Show loading placeholder while initializing
+  if (isLoading) {
+    return <LoadingPlaceholder />;
+  }
+
   return (
     <ErrorBoundary>
       <BackendStatusProvider>
         <Router>
           <div className="App">
             <Routes>
-              <Route path="/" element={<TestDashboard />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<AppLayout />} />
               <Route path="/playground" element={<Playground />} />
-              <Route path="/test" element={<TestDashboard />} />
+              <Route path="/test" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
         </Router>

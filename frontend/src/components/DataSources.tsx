@@ -41,9 +41,13 @@ const DataSources: React.FC<DataSourcesProps> = ({
   className = ""
 }) => {
   const triggerBrowse = () => {
+    console.log('DataSources: Browse button clicked');
     // Only call the parent's browse function, don't create our own file input
     if (onBrowseFiles) {
+      console.log('DataSources: Calling onBrowseFiles');
       onBrowseFiles();
+    } else {
+      console.warn('DataSources: onBrowseFiles function not provided');
     }
   };
 
@@ -83,7 +87,9 @@ const DataSources: React.FC<DataSourcesProps> = ({
             onDrop={(e) => {
               e.preventDefault();
               e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+              console.log('DataSources: Files dropped:', e.dataTransfer.files);
               if (e.dataTransfer.files.length > 0) {
+                console.log('DataSources: Calling onDragDropImport with', e.dataTransfer.files.length, 'files');
                 onDragDropImport(e.dataTransfer.files);
               }
             }}
@@ -106,7 +112,7 @@ const DataSources: React.FC<DataSourcesProps> = ({
           <div 
             className="overflow-y-auto data-sources-scrollbar flex-1" 
             style={{ 
-              maxHeight: `${height - 120}px` // Subtract header height + padding
+              maxHeight: `${Math.max(height - 120, 200)}px` // Subtract header height + padding, minimum 200px
             }}
           >
             <div className="space-y-2">

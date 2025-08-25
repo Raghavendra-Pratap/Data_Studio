@@ -356,23 +356,48 @@ const AppLayout: React.FC = () => {
   };
 
   const handleWorkspaceBrowseFiles = () => {
-    console.log('Browse files clicked');
+    // Create a file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true;
+    fileInput.accept = '.csv,.xlsx,.xls,.txt';
+    
+    // Handle file selection
+    fileInput.onchange = (event) => {
+      const target = event.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        handleWorkspaceDragDropImport(target.files);
+      }
+    };
+    
+    // Trigger file dialog
+    fileInput.click();
   };
 
   const handleWorkspaceDragDropImport = (files: FileList) => {
     const filesArray = Array.from(files);
     const newFiles: FileData[] = filesArray.map((file) => {
       const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      const isCSV = file.name.endsWith('.csv') || file.name.endsWith('.txt');
+      
+      // Generate some sample columns for demonstration
+      const sampleColumns = isExcel ? ['Sheet1', 'Column A', 'Column B', 'Column C'] : 
+                           isCSV ? ['Column A', 'Column B', 'Column C', 'Column D'] : 
+                           ['Data Column 1', 'Data Column 2', 'Data Column 3'];
+      
       return {
         name: file.name,
-        type: isExcel ? 'excel' : (file.type || 'csv'),
+        type: isExcel ? 'excel' : (isCSV ? 'csv' : file.type || 'unknown'),
         size: file.size,
-        columns: [],
-        path: '',
+        columns: sampleColumns,
+        path: URL.createObjectURL(file), // Create object URL for file access
         lastModified: new Date(file.lastModified),
-        headerConfig: { row: 1, merged: false, autoDetected: true }
+        headerConfig: { row: 1, merged: false, autoDetected: true },
+        sheets: isExcel ? { 'Sheet1': sampleColumns } : undefined
       } as FileData;
     });
+    
+    console.log('Importing files:', newFiles);
     setImportedFiles((prev) => [...prev, ...newFiles]);
   };
 
@@ -410,14 +435,14 @@ const AppLayout: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         {/* Top Bar */}
-        <div className="bg-white h-16 px-6 flex items-center justify-between border-b">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold">Data Studio</h1>
+        <div className="bg-white h-16 px-4 md:px-6 flex items-center justify-between border-b">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <h1 className="text-lg md:text-xl font-semibold">Unified Data Studio</h1>
             {/* Backend Status Indicator */}
             <BackendStatusIndicator />
             {/* Dynamic breadcrumb navigation */}
             {selectedProject && (
-              <div className="flex items-center text-sm text-gray-500">
+              <div className="hidden md:flex items-center text-sm text-gray-500">
                 <span 
                   className="cursor-pointer hover:text-gray-700"
                   onClick={() => setSelectedProject(null)}
@@ -429,27 +454,27 @@ const AppLayout: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
             <button 
               onClick={() => navigate('/playground')}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center px-2 md:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm md:text-base"
             >
-              <Play className="w-4 h-4 mr-2" />
-              Playground
+              <Play className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Playground</span>
             </button>
             <button 
               onClick={() => navigate('/playground')}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="flex items-center px-2 md:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm md:text-base"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              New Workflow
+              <Plus className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">New Workflow</span>
             </button>
             <button 
               onClick={() => setShowCreateProjectDialog(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center px-2 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
+              <Plus className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">New Project</span>
             </button>
           </div>
         </div>
@@ -507,6 +532,8 @@ const AppLayout: React.FC = () => {
               dataPreviewHeight={300}
               selectedColumns={[]}
               selectedFiles={[]}
+              setSelectedColumns={() => {}}
+              setSelectedFiles={() => {}}
               handleColumnClick={() => {}}
               handleFileClick={() => {}}
               collapsedSheets={{}}

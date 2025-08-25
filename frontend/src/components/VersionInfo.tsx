@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Info, Download, RefreshCw, ExternalLink } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 interface VersionInfo {
   version: string;
@@ -92,14 +91,14 @@ const VersionInfo: React.FC<VersionInfoProps> = ({
   }
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center">
+    <div className={`card ${className}`}>
+      <div className="p-4 pb-3">
+        <h3 className="text-lg font-semibold flex items-center">
           <Info className="h-5 w-5 mr-2 text-blue-600" />
           Version Information
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </h3>
+      </div>
+      <div className="p-4 space-y-4">
         {/* Current Version */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-600">Current Version</span>
@@ -169,8 +168,8 @@ const VersionInfo: React.FC<VersionInfoProps> = ({
             <span>View on GitHub</span>
           </a>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
