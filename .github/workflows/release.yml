@@ -201,24 +201,35 @@ jobs:
         echo "macOS packages:"
         ls -la artifacts/macos-latest-packages/ || echo "No macos packages found"
     
-    - name: Create Release Assets Archive
-      run: |
-        echo "Creating release assets archive..."
-        cd artifacts
-        tar -czf ../release-assets.tar.gz .
-        cd ..
-        echo "Release assets archive created:"
-        ls -la release-assets.tar.gz
-    
-    - name: Upload Release Assets
+    - name: Upload Ubuntu Assets
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: release-assets.tar.gz
-        asset_name: all-platform-assets.tar.gz
-        asset_content_type: application/gzip
+        asset_path: artifacts/ubuntu-latest-packages/
+        asset_name: ubuntu-packages
+        asset_content_type: application/octet-stream
+    
+    - name: Upload Windows Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/windows-latest-packages/
+        asset_name: windows-packages
+        asset_content_type: application/octet-stream
+    
+    - name: Upload macOS Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/macos-latest-packages/
+        asset_name: macos-packages
+        asset_content_type: application/octet-stream
     
     - name: Notify release completion
       run: |
