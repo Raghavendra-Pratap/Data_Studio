@@ -164,6 +164,8 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     sourceFile: string;
     rowCount: number;
   } | null>(null);
+
+
   
   // Save Workflow Dialog state
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -492,17 +494,18 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     setFunctionParameters([]);
     setIsFunctionOpen(true);
     
-    // Add function step to workflow
+    // Add function step to workflow with proper structure
     addWorkflowStep({
       type: 'function',
       source: functionName,
-      parameters: []
+      parameters: [],
+      // Note: columnReference will be set when columns are selected as parameters
     });
 
     // Auto-scroll to show the new function step
-      setTimeout(() => {
-        scrollWorkflowToBottom();
-      }, 100);
+    setTimeout(() => {
+      scrollWorkflowToBottom();
+    }, 100);
   };
 
   // Complete function with parameters - now validates using formula service
@@ -515,12 +518,33 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
         return;
       }
 
-      // Update the last function step with parameters
+      // Update the last function step with parameters and column reference
       setWorkflowSteps(prev => {
         const newSteps = [...prev];
         const lastStep = newSteps[newSteps.length - 1];
         if (lastStep && lastStep.type === 'function') {
           lastStep.parameters = functionParameters;
+          
+          // If we have column parameters, set the column reference for data processing
+          if (functionParameters.length > 0) {
+            // Find the column reference from the first parameter
+            const columnPath = functionParameters[0];
+            const fileMatch = importedFiles.find(file => 
+              columnPath.includes(file.name) || 
+              file.columns.some(col => columnPath.includes(col))
+            );
+            
+            if (fileMatch) {
+              const columnName = columnPath.split(' ▸ ').pop() || functionParameters[0];
+              lastStep.columnReference = {
+                displayName: columnPath,
+                columnName: columnName,
+                fileName: fileMatch.name,
+                sheetName: fileMatch.currentSheet,
+                fullPath: columnPath
+              };
+            }
+          }
         }
         return newSteps;
       });
@@ -538,25 +562,88 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   };
 
   // Generate workflow preview for live preview mode
-  const generateWorkflowPreview = async () => {
+  const generateWorkflowPreview = useCallback(async () => {
     if (workflowSteps.length === 0) return;
     
     setIsPreviewLoading(true);
     
     try {
-      // Simulate preview generation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // For now, just simulate loading
-      // In real implementation, this would use data processor to process sample data
       console.log(`Generating preview for ${workflowSteps.length} steps with ${sampleSize} rows`);
+      
+      // Convert importedFiles to FileData format for data processor
+      const fileData = importedFiles.map(file => ({
+        name: file.name,
+        type: file.type,
+        data: file.data || [],
+        columns: file.columns || [],
+        sheets: file.sheets,
+        currentSheet: file.currentSheet
+      }));
+      
+      // Process each workflow step to generate preview
+      const results = [];
+      let previousStepData = fileData[0]?.data || [];
+      
+      for (let i = 0; i < workflowSteps.length; i++) {
+        const step = workflowSteps[i];
+        console.log(`Processing step ${i + 1}:`, step);
         
-      } catch (error) {
+        try {
+          // Use dataProcessor to process the step
+          const result = await dataProcessor.processWorkflowStep(step, [{
+            name: `step_${i}_input`,
+            type: 'workflow_step',
+            data: previousStepData,
+            columns: previousStepData.length > 0 ? Object.keys(previousStepData[0]) : [],
+            sheets: {},
+            currentSheet: undefined
+          }], sampleSize);
+          
+          result.stepIndex = i;
+          results.push(result);
+          
+          // Update previous step data for next iteration
+          previousStepData = result.data;
+          
+          console.log(`Step ${i + 1} completed:`, result);
+        } catch (error) {
+          console.error(`Error processing step ${i + 1}:`, error);
+          // Add error result
+          results.push({
+            data: [],
+            columns: ['Error'],
+            rowCount: 0,
+            executionTime: 0,
+            memoryUsage: 0,
+            sampleSize: 0,
+            stepIndex: i
+          });
+        }
+      }
+      
+      console.log('Workflow preview generated:', results);
+      
+      // Update the LivePreview component with results
+      // This will be handled by the LivePreview component's useEffect
+      
+    } catch (error) {
       console.error('Preview generation failed:', error);
-      } finally {
+    } finally {
       setIsPreviewLoading(false);
     }
-  };
+  }, [workflowSteps, importedFiles, sampleSize]);
+
+  // Auto-generate preview when workflow steps change
+  useEffect(() => {
+    if (previewMode === 'live' && workflowSteps.length > 0 && importedFiles.length > 0) {
+      // Small delay to ensure state is updated
+      const timer = setTimeout(() => {
+        generateWorkflowPreview();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [workflowSteps, previewMode, importedFiles.length, generateWorkflowPreview]);
 
   // Add workflow step function
   const addWorkflowStep = (step: {
@@ -2255,13 +2342,21 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
         <div className="data-preview-section mt-1" style={{ height: `${bottomSectionHeight}px` }}>
           <Card className="h-full">
                                         <CardContent className="p-2 h-full">
-                     {/* Clickable Header - Switches between Data Preview and Live Preview */}
+                                          {/* Clickable Header - Switches between Data Preview and Live Preview */}
                      <div 
-                       onClick={() => setPreviewMode(previewMode === 'structure' ? 'live' : 'structure')}
-                                               className={`cursor-pointer transition-all duration-200 rounded-lg p-2 mb-2 ${
+                       onClick={() => {
+                         const newMode = previewMode === 'structure' ? 'live' : 'structure';
+                         setPreviewMode(newMode);
+                         
+                         // Generate workflow preview when switching to live mode
+                         if (newMode === 'live' && workflowSteps.length > 0) {
+                           generateWorkflowPreview();
+                         }
+                       }}
+                       className={`cursor-pointer transition-all duration-200 rounded-lg p-2 mb-2 ${
                          previewMode === 'structure' 
                            ? 'bg-blue-50 border border-blue-200 hover:bg-blue-100' 
-                           : 'bg-green-50 border border-green-200 hover:bg-green-100'
+                           : 'bg-green-50 border border-blue-200 hover:bg-blue-100'
                        }`}
                      >
                        <div className="flex items-center justify-between">

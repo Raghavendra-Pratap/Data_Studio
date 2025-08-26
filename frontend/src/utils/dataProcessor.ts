@@ -224,6 +224,7 @@ class DataProcessor {
     
     console.log(`Processing function application: ${step.source} with parameters:`, step.parameters);
     console.log(`Input file data:`, fileData[0]);
+    console.log(`Step column reference:`, step.columnReference);
     
     // Get the function name and parameters
     const functionName = step.source.toUpperCase();
@@ -238,10 +239,18 @@ class DataProcessor {
     
     return sampleData.map((row, rowIndex) => {
       // For function steps, we need to determine which column to process
-      // If parameters are provided, use the first parameter as the input column
-      // Otherwise, try to use the first available column
-      let inputColumn = parameters[0];
-      if (!inputColumn) {
+      // Priority: 1. columnReference, 2. parameters, 3. first available column
+      let inputColumn = '';
+      
+      if (step.columnReference && step.columnReference.columnName) {
+        // Use the column reference from the step
+        inputColumn = step.columnReference.columnName;
+        console.log(`Using column reference: ${inputColumn}`);
+      } else if (parameters.length > 0) {
+        // Use the first parameter as column name
+        inputColumn = parameters[0];
+        console.log(`Using parameter as column: ${inputColumn}`);
+      } else {
         // Fallback: use the first available column
         const availableColumns = Object.keys(row);
         inputColumn = availableColumns[0] || 'unknown';
