@@ -142,6 +142,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   // Live Preview state
   const [sampleSize, setSampleSize] = useState<10 | 50 | 100>(50);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isFileImporting, setIsFileImporting] = useState(false);
   const [previewResultMode, setPreviewResultMode] = useState<'step' | 'final'>('step');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   
@@ -236,6 +237,141 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     return () => clearInterval(interval);
   }, [checkHealth]);
 
+  // Window resize handler for desktop optimization
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
+    
+    // Initial height calculation
+    handleResize();
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Helper function to smartly group parameters by sheet/file
+  const smartGroupParameters = (parameters: string[]): string => {
+    if (parameters.length === 0) return 'None yet';
+    
+    // Group parameters by their source file/sheet
+    const grouped: Record<string, string[]> = {};
+    
+    parameters.forEach(param => {
+      const parts = param.split(' ▸ ');
+      if (parts.length >= 2) {
+        const fileKey = parts[0]; // File name
+        const columnName = parts[parts.length - 1]; // Last part is column name
+        
+        if (!grouped[fileKey]) {
+          grouped[fileKey] = [];
+        }
+        grouped[fileKey].push(columnName);
+      } else {
+        // If no separator, treat as individual parameter
+        if (!grouped['Other']) {
+          grouped['Other'] = [];
+        }
+        grouped['Other'].push(param);
+      }
+    });
+    
+    // Build the smart display string
+    const result: string[] = [];
+    
+    Object.entries(grouped).forEach(([fileKey, columns]) => {
+      if (columns.length === 1) {
+        // Single column from this file/sheet
+        result.push(`${fileKey} ▸ ${columns[0]}`);
+      } else {
+        // Multiple columns from same file/sheet - group them
+        result.push(`${fileKey} { ${columns.join('; ')} }`);
+      }
+    });
+    
+    return result.join(' ');
+  };
+
+  // Get dynamic checkboxes based on formula type
+  const getFormulaCheckboxes = (formulaName: string) => {
+    const formula = formulaName.toUpperCase();
+    
+    switch (formula) {
+      case 'TEXT_JOIN':
+      case 'CONCATENATE':
+      case 'CONCAT':
+        return [
+          { id: 'delimiter', label: 'Delimiter', type: 'text', placeholder: ', ', defaultValue: ', ' },
+          { id: 'ignore-empty', label: 'Ignore Empty Values', type: 'checkbox' },
+          { id: 'trim-values', label: 'Trim Each Value', type: 'checkbox' }
+        ];
+      
+      case 'SUBSTITUTE':
+      case 'REPLACE':
+        return [
+          { id: 'case-sensitive', label: 'Case Sensitive', type: 'checkbox' },
+          { id: 'replace-all', label: 'Replace All Occurrences', type: 'checkbox' }
+        ];
+      
+      case 'LEFT':
+      case 'RIGHT':
+      case 'MID':
+        return [
+          { id: 'trim-result', label: 'Trim Result', type: 'checkbox' }
+        ];
+      
+      case 'FIND':
+      case 'SEARCH':
+        return [
+          { id: 'case-sensitive', label: 'Case Sensitive', type: 'checkbox' },
+          { id: 'start-position', label: 'Start From Position', type: 'number', placeholder: '1', defaultValue: '1' }
+        ];
+      
+      case 'IF':
+      case 'AND':
+      case 'OR':
+      case 'NOT':
+        return [
+          { id: 'show-which', label: 'Show Which Condition', type: 'checkbox' }
+        ];
+      
+      case 'ADD':
+      case 'SUBTRACT':
+      case 'MULTIPLY':
+      case 'DIVIDE':
+        return [
+          { id: 'handle-missing', label: 'Handle Missing Values', type: 'checkbox' },
+          { id: 'round-result', label: 'Round Result', type: 'number', placeholder: '2', defaultValue: '2' }
+        ];
+      
+      case 'ROUND':
+        return [
+          { id: 'round-up', label: 'Round Up', type: 'checkbox' },
+          { id: 'round-down', label: 'Round Down', type: 'checkbox' }
+        ];
+      
+      case 'UPPER':
+      case 'LOWER':
+      case 'TRIM':
+      case 'TEXT_LENGTH':
+      case 'TITLE_CASE':
+      case 'PROPER':
+      case 'PROPER_CASE':
+      case 'REVERSE':
+      case 'CAPITALIZE':
+        // Simple text functions don't need special options
+        return [];
+      
+      default:
+        return [];
+    }
+  };
+
+
+
   // Helper function to parse column path and create ColumnReference
   const parseColumnPath = (columnPath: string, file: PlaygroundFile): ColumnReference => {
     const parts = columnPath.split(' ▸ ');
@@ -267,6 +403,79 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       };
     }
   };
+
+  // Load file data on-demand (LAZY LOADING)
+  const loadFileDataOnDemand = useCallback((file: PlaygroundFile, maxRows: number): any[] => {
+    if (file.data && file.data.length > 0) {
+      // Data already loaded, return existing data
+      return file.data.slice(0, maxRows);
+    }
+
+    try {
+      if (file.type === 'text/csv') {
+        // Parse CSV data on-demand
+        const rawText = (file as any).rawText;
+        if (rawText) {
+          const parsed = Papa.parse(rawText, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: false,
+            preview: maxRows // Only parse the rows we need
+          });
+          
+          // Cache the loaded data
+          file.data = parsed.data as any[];
+          console.log(`CSV data loaded on-demand: ${parsed.data.length} rows`);
+          return file.data;
+        }
+      } else if (file.type.includes('excel')) {
+        // Parse Excel data on-demand
+        const workbook = (file as any).workbook;
+        if (workbook) {
+          const sheetName = file.currentSheet || workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (jsonData.length > 0) {
+            const headers = jsonData[0] as string[];
+            const sheetData = jsonData.slice(1, maxRows + 1).map((row: any) => {
+              const rowObj: any = {};
+              headers.forEach((header, index) => {
+                if (header && header.trim() !== '') {
+                  rowObj[header] = (row as any[])[index] || '';
+                }
+              });
+              return rowObj;
+            }).filter(row => Object.keys(row).some(key => row[key] !== ''));
+            
+            // Cache the loaded data
+            file.data = sheetData;
+            console.log(`Excel data loaded on-demand: ${sheetData.length} rows`);
+            return file.data;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading file data on-demand:', error);
+    }
+    
+    return [];
+  }, []);
+
+  // Memory cleanup: Clear cached data when no longer needed
+  const clearCachedData = useCallback((file: PlaygroundFile) => {
+    if (file.data && file.data.length > 0) {
+      const totalRows = (file as any).totalRows || 0;
+      const cachedRows = file.data.length;
+      const memorySaved = totalRows - cachedRows;
+      
+      // Clear cached data to free memory
+      file.data = [];
+      
+      console.log(`Memory cleanup: Cleared ${cachedRows} cached rows for ${file.name}`);
+      console.log(`Memory saved: ${memorySaved} rows (${Math.round((memorySaved / totalRows) * 100)}% reduction)`);
+    }
+  }, []);
 
   // Generate live preview data for selected columns
   const generateSelectedColumnsPreview = useCallback(() => {
@@ -326,16 +535,18 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       let allColumns: string[] = [];
       
       columnsByFile.forEach(({ file, columns }, key) => {
-        if (!file.data || file.data.length === 0) {
-          console.warn(`No data found for file: ${file.name}`);
+        // LAZY LOADING: Load data on-demand with smart row limiting
+        const maxRows = Math.min(sampleSize, (file as any).totalRows || 0);
+        const fileData = loadFileDataOnDemand(file, maxRows);
+        
+        if (fileData.length === 0) {
+          console.warn(`No data loaded for file: ${file.name}`);
           return;
         }
-
+        
         console.log(`Processing file ${file.name} with columns:`, columns);
-        console.log(`File data sample:`, file.data.slice(0, 2));
-        console.log(`Available data keys:`, Object.keys(file.data[0] || {}));
-
-        const fileData = file.data.slice(0, sampleSize);
+        console.log(`Loaded ${fileData.length} rows on-demand (max: ${maxRows})`);
+        console.log(`Memory usage optimized: only ${fileData.length} rows in memory vs ${(file as any).totalRows || 'unknown'} total rows`);
         
         if (allPreviewData.length === 0) {
           // First file - use its row count
@@ -413,9 +624,12 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     });
   };
 
-  // Update live preview when selection changes
+  // Update live preview when selection changes - LAZY LOADING
   useEffect(() => {
-    generateSelectedColumnsPreview();
+    // Only generate preview if columns are actually selected
+    if (selectedColumns.length > 0 && importedFiles.length > 0) {
+      generateSelectedColumnsPreview();
+    }
   }, [selectedColumns, importedFiles, sampleSize, generateSelectedColumnsPreview]);
 
   // Helper functions for formula management
@@ -645,6 +859,14 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     }
   }, [workflowSteps, previewMode, importedFiles.length, generateWorkflowPreview]);
 
+  // Memory cleanup: Clear cached data when files are removed
+  useEffect(() => {
+    return () => {
+      // Cleanup cached data on component unmount
+      importedFiles.forEach(clearCachedData);
+    };
+  }, [importedFiles, clearCachedData, loadFileDataOnDemand]);
+
   // Add workflow step function
   const addWorkflowStep = (step: {
     type: 'column' | 'function' | 'break' | 'custom' | 'sheet';
@@ -661,6 +883,8 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     };
     
     setWorkflowSteps(prev => [...prev, newStep]);
+    // Record the action for undo/redo
+    recordAction('add', newStep);
   };
 
   // Remove workflow step function
@@ -670,6 +894,8 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
 
   // Clear all workflow steps
   const clearWorkflow = () => {
+    // Record the current workflow before clearing
+    recordAction('clear', [...workflowSteps]);
     setWorkflowSteps([]);
   };
 
@@ -805,6 +1031,9 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   const handleFileImport = async (files: FileList) => {
     console.log('Importing files:', files);
     
+    // Set loading state
+    setIsFileImporting(true);
+    
     try {
       const newFiles: PlaygroundFile[] = [];
       
@@ -827,14 +1056,15 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
           currentSheet: undefined
       };
 
-        // Process different file types
+        // Process different file types - OPTIMIZED with LAZY DATA LOADING
         if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
-        // Handle CSV files
+          // Handle CSV files - LAZY LOADING: Only parse headers initially
           const text = await file.text();
           const parsed = Papa.parse(text, {
             header: true,
             skipEmptyLines: true,
-            dynamicTyping: false
+            dynamicTyping: false,
+            preview: 0 // Don't parse data rows yet
           });
           
           if (parsed.errors.length > 0) {
@@ -842,10 +1072,14 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
           }
           
           fileData.columns = parsed.meta.fields || [];
-          fileData.data = parsed.data as any[];
+          fileData.data = []; // Don't store all data in memory
           fileData.type = 'text/csv';
           
-          console.log(`CSV processed: ${fileData.columns.length} columns, ${fileData.data.length} rows`);
+          // Store raw text for lazy loading when needed
+          (fileData as any).rawText = text;
+          (fileData as any).totalRows = parsed.data.length;
+          
+          console.log(`CSV processed: ${fileData.columns.length} columns, ${parsed.data.length} total rows (data loaded on-demand)`);
           
         } else if (file.type.includes('excel') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
           // Handle Excel files using xlsx library
@@ -902,13 +1136,16 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
             });
             
             fileData.columns = allColumns;
-            fileData.data = allData;
+            fileData.data = []; // Don't store all data in memory
             fileData.sheets = sheets;
             fileData.currentSheet = sheetNames[0] || 'Sheet1';
             fileData.type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
             
-            console.log(`Excel processed successfully: ${allColumns.length} total columns, ${allData.length} rows, ${Object.keys(sheets).length} sheets`);
-            console.log(`Sample data from first sheet:`, allData.slice(0, 2));
+            // Store workbook for lazy loading when needed
+            (fileData as any).workbook = workbook;
+            (fileData as any).totalRows = allData.length;
+            
+            console.log(`Excel processed successfully: ${allColumns.length} total columns, ${allData.length} total rows, ${Object.keys(sheets).length} sheets (data loaded on-demand)`);
             
           } catch (excelError) {
             console.error('Error parsing Excel file:', excelError);
@@ -942,55 +1179,155 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       
       console.log(`Successfully imported ${newFiles.length} files. Total files: ${importedFiles.length + newFiles.length}`);
       
-      // Show success message
-      alert(`Successfully imported ${newFiles.length} file(s)!`);
-      
       // Clear the file input value to prevent the same file from being selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       
+      // Reset loading state
+      setIsFileImporting(false);
+      
     } catch (error) {
       console.error('Error importing files:', error);
-      alert(`Error importing files: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       // Clear the file input value even on error
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      // Reset loading state on error
+      setIsFileImporting(false);
     }
   };
 
   const handleDeleteFile = (fileName: string) => {
-    // Implementation for deleting files
-    console.log('Deleting file:', fileName);
+    // Find the file to clear its cached data
+    const fileToDelete = importedFiles.find(file => file.name === fileName);
+    if (fileToDelete) {
+      clearCachedData(fileToDelete);
+    }
+    
+    // Remove the file from importedFiles
+    setImportedFiles(prev => prev.filter(file => file.name !== fileName));
+    
+    // Also remove any selected columns from this file
+    setSelectedColumns(prev => prev.filter(col => !col.includes(fileName)));
+    
+    // Clear any workflow steps that reference this file
+    setWorkflowSteps(prev => prev.filter(step => {
+      if (step.type === 'column' && step.columnReference) {
+        return step.columnReference.fileName !== fileName;
+      }
+      return true;
+    }));
+    
+    // Clear preview if no files remain
+    if (importedFiles.length <= 1) {
+      setSelectedColumnsPreview(null);
+    }
+    
+    console.log('Deleted file:', fileName);
   };
 
-  // Calculate section heights
-  const topSectionHeight = Math.floor((windowHeight - 150) * 0.5);
-  const bottomSectionHeight = Math.floor((windowHeight - 140) * 0.5);
+  // Calculate section heights - optimized for desktop app
+  const topSectionHeight = Math.floor((windowHeight - 200) * 0.5);
+  const bottomSectionHeight = Math.floor((windowHeight - 200) * 0.5);
 
-  // Additional workflow management functions
+  // Enhanced undo/redo system with action history
+  const [actionHistory, setActionHistory] = useState<Array<{
+    type: 'add' | 'remove' | 'modify' | 'clear';
+    data: any;
+    timestamp: number;
+  }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{
+    type: 'add' | 'remove' | 'modify' | 'clear';
+    data: any;
+    timestamp: number;
+  }>>([]);
+
+  // Record action for undo/redo
+  const recordAction = (type: 'add' | 'remove' | 'modify' | 'clear', data: any) => {
+    const action = {
+      type,
+      data,
+      timestamp: Date.now()
+    };
+    setActionHistory(prev => [...prev, action]);
+    setRedoStack([]); // Clear redo stack when new action is performed
+  };
+
+  // Enhanced undo function - only undoes the last action
   const undoWorkflowStep = () => {
-    if (workflowSteps.length > 0) {
-      setWorkflowSteps(prev => prev.slice(0, -1));
+    if (actionHistory.length > 0) {
+      const lastAction = actionHistory[actionHistory.length - 1];
+      const newHistory = actionHistory.slice(0, -1);
+      
+      // Handle different action types
+      switch (lastAction.type) {
+        case 'add':
+          // Remove the last added step
+          if (workflowSteps.length > 0) {
+            const removedStep = workflowSteps[workflowSteps.length - 1];
+            setWorkflowSteps(prev => prev.slice(0, -1));
+            setRedoStack(prev => [...prev, { ...lastAction, data: removedStep }]);
+          }
+          break;
+        case 'remove':
+          // Re-add the removed step
+          setWorkflowSteps(prev => [...prev, lastAction.data]);
+          setRedoStack(prev => [...prev, { type: 'add', data: lastAction.data, timestamp: Date.now() }]);
+          break;
+        case 'modify':
+          // Revert the modification
+          setWorkflowSteps(prev => prev.map(step => 
+            step.id === lastAction.data.id ? lastAction.data : step
+          ));
+          setRedoStack(prev => [...prev, { type: 'modify', data: lastAction.data, timestamp: Date.now() }]);
+          break;
+        case 'clear':
+          // Restore the cleared workflow
+          setWorkflowSteps(lastAction.data);
+          setRedoStack(prev => [...prev, { type: 'clear', data: [], timestamp: Date.now() }]);
+          break;
+      }
+      
+      setActionHistory(newHistory);
     }
   };
 
+  // Enhanced redo function
   const redoWorkflowStep = () => {
-    // Basic redo implementation - re-add the last removed step
-    // For a more sophisticated implementation, we would need a proper undo/redo stack
-    if (workflowSteps.length === 0) {
-      // Add a sample step for demonstration
-      addWorkflowStep({
-        type: 'column',
-        source: 'Sample Column'
-      });
-      } else {
-      // Duplicate the last step
-      const lastStep = workflowSteps[workflowSteps.length - 1];
-      const { id, status, ...stepData } = lastStep; // Remove id and status from spread
-      addWorkflowStep(stepData);
+    if (redoStack.length > 0) {
+      const lastRedoAction = redoStack[redoStack.length - 1];
+      const newRedoStack = redoStack.slice(0, -1);
+      
+      // Handle different redo action types
+      switch (lastRedoAction.type) {
+        case 'add':
+          // Re-add the step
+          setWorkflowSteps(prev => [...prev, lastRedoAction.data]);
+          setActionHistory(prev => [...prev, { type: 'add', data: lastRedoAction.data, timestamp: Date.now() }]);
+          break;
+        case 'remove':
+          // Re-remove the step
+          setWorkflowSteps(prev => prev.filter(step => step.id !== lastRedoAction.data.id));
+          setActionHistory(prev => [...prev, { type: 'remove', data: lastRedoAction.data, timestamp: Date.now() }]);
+          break;
+        case 'modify':
+          // Re-apply the modification
+          setWorkflowSteps(prev => prev.map(step => 
+            step.id === lastRedoAction.data.id ? lastRedoAction.data : step
+          ));
+          setActionHistory(prev => [...prev, { type: 'modify', data: lastRedoAction.data, timestamp: Date.now() }]);
+          break;
+        case 'clear':
+          // Re-clear the workflow
+          setWorkflowSteps([]);
+          setActionHistory(prev => [...prev, { type: 'clear', data: [], timestamp: Date.now() }]);
+          break;
+      }
+      
+      setRedoStack(newRedoStack);
     }
   };
 
@@ -1543,7 +1880,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
               
       {/* Main Content */}
       <div className="flex-1 p-4 overflow-hidden">
-        <div className="grid grid-cols-12 gap-6 top-section-container" style={{ height: `${topSectionHeight}px` }}>
+        <div className="grid grid-cols-12 gap-6 top-section-container desktop-optimized" style={{ height: `${topSectionHeight}px` }}>
           {/* Left Panel - Data Sources (reused component) */}
           <div className="col-span-3 h-full">
             <DataSources
@@ -1553,12 +1890,12 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
               onDeleteFile={handleDeleteFile}
               height={topSectionHeight}
               showDeleteButton={true}
-              showHeaderConfig={true}
+              showHeaderConfig={false}
             />
           </div>
 
           {/* Center Panel - Workflow Builder */}
-          <Card className="col-span-6 h-full max-w-none workflow-builder-container">
+          <Card className="col-span-6 h-full max-w-none workflow-builder-container desktop-optimized">
             <CardContent className="p-3 h-full flex flex-col overflow-hidden workflow-builder-content">
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <h3 className="font-semibold flex items-center">
@@ -1987,17 +2324,76 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                             <div className="flex items-center space-x-2 mb-3">
                               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                               <span className="text-sm font-medium text-blue-700">
-                                Function Parameter Collection Active
+                                Configure {step.source} Function
                               </span>
                             </div>
-                            <div className="text-xs text-blue-700 mb-3">
-                              💡 <strong>Tip:</strong> Click columns in the Data Preview to add parameters, then press <kbd className="px-2 py-1 bg-blue-200 border border-blue-300 rounded text-xs font-mono">Enter</kbd> to complete
-                            </div>
+                            
+                            {/* Dynamic Parameter Controls */}
+                            {(() => {
+                              const checkboxes = getFormulaCheckboxes(step.source);
+                              if (checkboxes.length === 0) return null;
+                              
+                              return (
+                                <div className="flex items-center space-x-6 mb-4">
+                                  {checkboxes.map((checkbox) => (
+                                    <div key={checkbox.id} className="flex items-center space-x-2">
+                                      {checkbox.type === 'checkbox' ? (
+                                        <>
+                                          <input
+                                            type="checkbox"
+                                            id={`${checkbox.id}-${step.id}`}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                          />
+                                          <label htmlFor={`${checkbox.id}-${step.id}`} className="text-sm font-medium text-gray-700">
+                                            {checkbox.label}
+                                          </label>
+                                        </>
+                                      ) : checkbox.type === 'text' ? (
+                                        <>
+                                          <input
+                                            type="checkbox"
+                                            id={`${checkbox.id}-${step.id}`}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                          />
+                                          <label htmlFor={`${checkbox.id}-${step.id}`} className="text-sm font-medium text-gray-700">
+                                            {checkbox.label}
+                                          </label>
+                                          <input
+                                            type="text"
+                                            placeholder={checkbox.placeholder}
+                                            defaultValue={checkbox.defaultValue}
+                                            className="ml-2 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-16"
+                                          />
+                                        </>
+                                      ) : checkbox.type === 'number' ? (
+                                        <>
+                                          <input
+                                            type="checkbox"
+                                            id={`${checkbox.id}-${step.id}`}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                          />
+                                          <label htmlFor={`${checkbox.id}-${step.id}`} className="text-sm font-medium text-gray-700">
+                                            {checkbox.label}
+                                          </label>
+                                          <input
+                                            type="number"
+                                            placeholder={checkbox.placeholder}
+                                            defaultValue={checkbox.defaultValue}
+                                            className="ml-2 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-16"
+                                          />
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                            
+                            {/* Parameters Display */}
                             <div className="text-xs text-blue-600 mb-3 p-2 bg-white rounded border border-blue-200">
-                              <span className="font-medium">Current Function:</span> <strong>{step.source}</strong>
-                              <br />
-                              <span className="font-medium">Parameters:</span> <span className="font-mono">[{functionParameters.join(', ')}]</span>
+                              <span className="font-medium">Parameters:</span> <span className="font-mono">{smartGroupParameters(functionParameters)}</span>
                             </div>
+                            
                             {functionParameters.length > 0 && (
                               <div className="flex items-center space-x-2">
                               <button
@@ -2062,7 +2458,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
           </Card>
 
           {/* Right Panel - Enhanced Formula Engine */}
-          <Card className="col-span-3 h-full formula-engine-container">
+          <Card className="col-span-3 h-full formula-engine-container desktop-optimized">
             <CardContent className="p-3 h-full flex flex-col formula-engine-content">
               {/* Formula Engine Header with Search and Controls */}
               <div className="flex items-center justify-between mb-3 flex-shrink-0">
@@ -2339,7 +2735,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
         <div className="w-full h-px bg-gray-300 my-1"></div>
 
         {/* Data Preview Section */}
-        <div className="data-preview-section mt-1" style={{ height: `${bottomSectionHeight}px` }}>
+        <div className="data-preview-section mt-1 desktop-optimized" style={{ height: `${bottomSectionHeight}px` }}>
           <Card className="h-full">
                                         <CardContent className="p-2 h-full">
                                           {/* Clickable Header - Switches between Data Preview and Live Preview */}
@@ -2389,9 +2785,12 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                                previewMode === 'structure' ? 'text-blue-600' : 'text-green-600'
                              }`}>
                                {previewMode === 'structure' 
-                                 ? (isFunctionOpen 
-                                     ? `Click columns to add as parameters for ${activeFunction} function`
-                                     : 'Click columns to add to workflow, or click "Select File" to add entire files'
+                                 ? (isFileImporting 
+                                     ? 'Processing files... Please wait while we analyze your data'
+                                     : (isFunctionOpen 
+                                         ? `Click columns to add as parameters for ${activeFunction} function`
+                                         : 'Click columns to add to workflow, or click "Select File" to add entire files'
+                                       )
                                    )
                                  : 'Real-time preview of workflow execution results'
                                }
@@ -2404,16 +2803,23 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                            {previewMode === 'structure' ? (
                              // Data Preview Controls
                              <>
+                               {/* File Import Status */}
+                               {isFileImporting && (
+                                 <div className="flex items-center space-x-2">
+                                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                                   <span className="text-sm text-blue-600">Importing files...</span>
+                                 </div>
+                               )}
                                <span className="text-sm text-blue-600">
                                  Click columns to add to workflow
-                  </span>
+                               </span>
                                {/* Text Wrap Toggle */}
                                <button
                                  onClick={(e) => {
                                    e.stopPropagation();
                                    setTextWrapEnabled(!textWrapEnabled);
                                  }}
-                                 className={`px-3 py-1 rounded text-sm transition-colors flex items-center space-x-2 ${
+                                 className={`px-3 py-1 rounded text-sm transition-colors flex items-center space-x-2 w-[90px] justify-center ${
                                    textWrapEnabled
                                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
                                      : 'bg-white text-blue-600 hover:bg-blue-50 border border-blue-200'
@@ -2540,11 +2946,25 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                                  // File Structure Tab
                                    <div className="h-full flex flex-col min-h-0">
               
+              {/* Loading State for File Import */}
+              {isFileImporting && (
+                <div className="flex-1 flex items-center justify-center min-h-0">
+                  <div className="text-center text-blue-600">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                    <p className="text-sm font-medium">Processing files...</p>
+                    <p className="text-xs text-blue-500 mt-1">Please wait while we analyze your data</p>
+                    <div className="w-48 bg-blue-100 rounded-full h-2 mx-auto mt-3">
+                      <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Columns Display - Only show when files are imported */}
-              {importedFiles.length > 0 ? (
-                  <div className="relative w-full flex-1 min-h-0">
+              {!isFileImporting && importedFiles.length > 0 ? (
+                  <div className="relative w-full flex-1 min-h-0" >
                     <div className="absolute inset-0 overflow-x-auto overflow-y-auto data-preview-scrollbar border-2 border-gray-200 rounded-lg bg-gray-50">
-                      <div className="flex space-x-4 p-3 h-full" style={{ width: 'max-content' }}>
+                      <div className="flex space-x-4 p-3 h-full" style={{ width: 'max-content', height: '88%' }}>
                       {importedFiles.map((file) => renderFileColumns(file))}
                     </div>
                   </div>
@@ -2876,6 +3296,56 @@ const formulaEngineStyles = `
   
   .category-header:hover {
     background-color: #f8fafc;
+  }
+
+  /* Desktop-optimized styles for better desktop app experience */
+  .desktop-optimized {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .desktop-optimized.top-section-container {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+
+  .desktop-optimized.workflow-builder-container {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+
+  .desktop-optimized.formula-engine-container {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+
+  .desktop-optimized.data-preview-section {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+
+  /* Enhanced desktop responsiveness */
+  @media (min-width: 1024px) {
+    .desktop-optimized {
+      min-height: 400px;
+    }
+    
+    .desktop-optimized.top-section-container {
+      gap: 1.5rem;
+    }
+    
+    .desktop-optimized .workflow-builder-content {
+      padding: 1.25rem;
+    }
+    
+    .desktop-optimized .formula-engine-content {
+      padding: 1.25rem;
+    }
+  }
+
+  /* Desktop hover effects */
+  .desktop-optimized:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
   }
 `;
 

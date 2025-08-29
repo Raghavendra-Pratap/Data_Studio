@@ -53,41 +53,22 @@ code {
   background: #cbd5e1;
 }
 
+/* Data Sources scrollbar - clean and minimal */
 .data-sources-scrollbar::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
 }
 
 .data-sources-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 6px;
-  border: 2px solid #e2e8f0;
+  background: transparent;
 }
 
 .data-sources-scrollbar::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 6px;
-  border: 2px solid #334155;
+  background: #d1d5db;
+  border-radius: 4px;
 }
 
 .data-sources-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-
-.data-sources-scrollbar::-webkit-scrollbar-corner {
-  background: #f1f5f9;
-}
-
-/* Force scrollbar to always be visible */
-.data-sources-scrollbar {
-  scrollbar-width: auto;
-  scrollbar-color: #475569 #f1f5f9;
-  overflow-y: scroll !important;
-}
-
-/* Firefox scrollbar for Data Sources */
-.data-sources-scrollbar {
-  scrollbar-width: auto;
-  scrollbar-color: #475569 #f1f5f9;
+  background: #9ca3af;
 }
 
 .workflow-builder-scrollbar::-webkit-scrollbar {

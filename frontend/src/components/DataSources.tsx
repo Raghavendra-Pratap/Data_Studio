@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from './ui/card';
-import { FileText, Upload, File, Trash2 } from 'lucide-react';
+import { FileText, Upload, File, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface FileData {
   name: string;
@@ -40,6 +40,21 @@ const DataSources: React.FC<DataSourcesProps> = ({
   showHeaderConfig = false,
   className = ""
 }) => {
+  // State for tracking which files are expanded
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+
+  const toggleFileExpansion = (fileName: string) => {
+    setExpandedFiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileName)) {
+        newSet.delete(fileName);
+      } else {
+        newSet.add(fileName);
+      }
+      return newSet;
+    });
+  };
+
   const triggerBrowse = () => {
     console.log('DataSources: Browse button clicked');
     // Only call the parent's browse function, don't create our own file input
@@ -110,66 +125,84 @@ const DataSources: React.FC<DataSourcesProps> = ({
         ) : (
           /* Scrollable content area - Only when files are imported */
           <div 
-            className="overflow-y-auto data-sources-scrollbar flex-1" 
+            className="overflow-y-auto overflow-x-hidden data-sources-scrollbar flex-1" 
             style={{ 
-              maxHeight: `${Math.max(height - 120, 200)}px` // Subtract header height + padding, minimum 200px
+              maxHeight: `${Math.max(height - 80, 150)}px` // Reduced padding, more efficient space usage
             }}
           >
-            <div className="space-y-2">
-              {/* File count indicator */}
-              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded text-center">
+            <div className="space-y-1">
+              {/* File count indicator - more compact */}
+              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded text-center mb-2">
                 {importedFiles.length} file{importedFiles.length !== 1 ? 's' : ''} loaded
-                {importedFiles.length > 3 && (
-                  <span className="block text-blue-600 mt-1">Scroll to see all files</span>
-                )}
               </div>
               
-              {/* File list with strict height constraint */}
-              <div className="space-y-2">
-                {importedFiles.map((file, index) => (
-                  <div key={file.name} className="border rounded-lg p-3 bg-white">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0 mr-3">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <File className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                          <span className="text-sm font-medium text-gray-900 break-words leading-tight">
-                            {file.name}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 break-words">
-                          {file.type} • {Math.round(file.size / 1024)} KB
-                        </div>
-                        <div className="text-xs text-gray-600 break-words">
-                          {file.columns.length} column{file.columns.length !== 1 ? 's' : ''}
-                        </div>
-                        {/* Header Configuration Status - Only show if enabled */}
-                        {showHeaderConfig && file.headerConfig && (
-                          <div className="text-xs text-green-600 mt-1 break-words">
-                            {file.headerConfig.autoDetected ? 'Auto-detected headers' : 'Custom headers configured'}
-                            {file.headerConfig.merged && ' • Merged headers'}
+              {/* File list with compact spacing */}
+              <div className="space-y-1">
+                {importedFiles.map((file, index) => {
+                  const isExpanded = expandedFiles.has(file.name);
+                  const fileName = file.name;
+                  const displayName = isExpanded ? fileName : 
+                    (fileName.length > 30 ? fileName.substring(0, 30) + '...' : fileName);
+                  
+                  return (
+                    <div key={file.name} className="border rounded-lg p-2 bg-white overflow-hidden">
+                      <div className="flex items-start justify-between w-full">
+                        <div className="flex-1 min-w-0 mr-2 overflow-hidden">
+                          {/* File Header with Expand/Collapse */}
+                          <div className="flex items-center space-x-2 mb-1">
+                            <button
+                              onClick={() => toggleFileExpansion(file.name)}
+                              className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+                              title={isExpanded ? "Collapse file name" : "Expand file name"}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                              )}
+                            </button>
+                            <File className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            <span 
+                              className="text-sm font-medium text-gray-900 leading-tight cursor-pointer hover:text-blue-600 transition-colors break-all"
+                              onClick={() => toggleFileExpansion(file.name)}
+                              title={isExpanded ? "Click to collapse" : "Click to expand"}
+                            >
+                              {displayName}
+                            </span>
                           </div>
-                        )}
-                        {/* Sheets info if available */}
-                        {file.sheets && Object.keys(file.sheets).length > 0 && (
-                          <div className="text-xs text-blue-600 break-words">
-                            {Object.keys(file.sheets).length} sheet{Object.keys(file.sheets).length !== 1 ? 's' : ''} available
+                          
+                          {/* File Details - compact layout */}
+                          <div className="text-xs text-gray-500 break-words mb-0.5">
+                            {file.type} • {Math.round(file.size / 1024)} KB
+                          </div>
+                          <div className="text-xs text-gray-600 break-words mb-0.5">
+                            {file.columns.length} column{file.columns.length !== 1 ? 's' : ''}
+                          </div>
+                          
+                          {/* Sheets info if available */}
+                          {file.sheets && Object.keys(file.sheets).length > 0 && (
+                            <div className="text-xs text-blue-600 break-words">
+                              {Object.keys(file.sheets).length} sheet{Object.keys(file.sheets).length !== 1 ? 's' : ''} available
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Delete Button */}
+                        {showDeleteButton && onDeleteFile && (
+                          <div className="flex items-center space-x-1 flex-shrink-0">
+                            <button
+                              onClick={() => onDeleteFile(file.name)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors p-1 rounded-md"
+                              title="Delete file"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         )}
                       </div>
-                      {showDeleteButton && onDeleteFile && (
-                        <div className="flex items-center space-x-1">
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => onDeleteFile(file.name)}
-                            className="text-red-500 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded-md"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

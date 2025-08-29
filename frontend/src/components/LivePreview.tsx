@@ -29,6 +29,47 @@ const LivePreview: React.FC<LivePreviewProps> = ({
   currentStepIndex,
   selectedColumnsPreview
 }) => {
+  // Helper function to filter columns intelligently based on preview mode
+  const getFilteredColumns = (columns: string[], data: any[]): { filteredColumns: string[], filteredData: any[] } => {
+    if (previewResultMode === 'final') {
+      // In final results mode, show only output columns (transformed columns)
+      const filteredColumns = columns.filter(col => 
+        col.includes('_upper') || 
+        col.includes('_lower') || 
+        col.includes('_trim') || 
+        col.includes('_text_length') || 
+        col.includes('_title_case') || 
+        col.includes('_proper') || 
+        col.includes('_reverse') || 
+        col.includes('_capitalize') ||
+        col.includes('_add') ||
+        col.includes('_subtract') ||
+        col.includes('_multiply') ||
+        col.includes('_divide') ||
+        col.includes('_round') ||
+        col.includes('_if') ||
+        col.includes('_and') ||
+        col.includes('_or') ||
+        col.includes('_not')
+      );
+      
+      // Filter data to only include filtered columns
+      const filteredData = data.map(row => {
+        const filteredRow: any = {};
+        filteredColumns.forEach(col => {
+          if (row.hasOwnProperty(col)) {
+            filteredRow[col] = row[col];
+          }
+        });
+        return filteredRow;
+      });
+      
+      return { filteredColumns, filteredData };
+    }
+    
+    // In step results mode, show all columns (input + output)
+    return { filteredColumns: columns, filteredData: data };
+  };
   const [previewResults, setPreviewResults] = useState<ProcessedData[]>([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -263,63 +304,69 @@ const LivePreview: React.FC<LivePreviewProps> = ({
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
-                          {currentPreview.columns.map((column: string, index: number) => (
-                            <th
-                              key={index}
-                              className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              {column}
-                            </th>
-                          ))}
+                          {(() => {
+                            const { filteredColumns } = getFilteredColumns(currentPreview.columns, currentPreview.data);
+                            return filteredColumns.map((column: string, index: number) => (
+                              <th
+                                key={index}
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                              >
+                                {column}
+                              </th>
+                            ));
+                          })()}
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {currentPreview.data.map((row: any, rowIndex: number) => {
-                          try {
-                            return (
-                              <tr key={rowIndex} className="hover:bg-gray-50">
-                                {currentPreview.columns.map((column: string, colIndex: number) => {
-                                  try {
-                                    const cellValue = row[column];
-                                    const displayValue = cellValue !== undefined && cellValue !== null 
-                                      ? String(cellValue) 
-                                      : '';
-                                    
-                                    return (
-                                      <td
-                                        key={colIndex}
-                                        className="px-3 py-2 text-sm text-gray-900 max-w-xs truncate"
-                                        title={displayValue}
-                                      >
-                                        {displayValue}
-                                      </td>
-                                    );
-                                  } catch (cellError) {
-                                    console.error(`Error rendering cell at row ${rowIndex}, col ${colIndex}:`, cellError, { row, column });
-                                    return (
-                                      <td
-                                        key={colIndex}
-                                        className="px-3 py-2 text-sm text-red-600 max-w-xs"
-                                        title="Error rendering cell"
-                                      >
-                                        [Error]
-                                      </td>
-                                    );
-                                  }
-                                })}
-                              </tr>
-                            );
-                          } catch (rowError) {
-                            console.error(`Error rendering row ${rowIndex}:`, rowError, { row: currentPreview.data[rowIndex] });
-                            return (
-                              <tr key={rowIndex} className="hover:bg-gray-50 bg-red-50">
-                                <td colSpan={currentPreview.columns.length} className="px-3 py-2 text-sm text-red-600">
-                                  Error rendering row: {rowError instanceof Error ? rowError.message : 'Unknown error'}
-                                </td>
-                              </tr>
-                            );
-                          }
-                        })}
+                        {(() => {
+                          const { filteredColumns, filteredData } = getFilteredColumns(currentPreview.columns, currentPreview.data);
+                          return filteredData.map((row: any, rowIndex: number) => {
+                            try {
+                              return (
+                                <tr key={rowIndex} className="hover:bg-gray-50">
+                                  {filteredColumns.map((column: string, colIndex: number) => {
+                                    try {
+                                      const cellValue = row[column];
+                                      const displayValue = cellValue !== undefined && cellValue !== null 
+                                        ? String(cellValue) 
+                                        : '';
+                                      
+                                      return (
+                                        <td
+                                          key={colIndex}
+                                          className="px-2 py-2 text-sm text-gray-900 max-w-xs truncate"
+                                          title={displayValue}
+                                        >
+                                          {displayValue}
+                                        </td>
+                                      );
+                                    } catch (cellError) {
+                                      console.error(`Error rendering cell at row ${rowIndex}, col ${colIndex}:`, cellError, { row, column });
+                                      return (
+                                        <td
+                                          key={colIndex}
+                                          className="px-2 py-2 text-sm text-red-600 max-w-xs"
+                                          title="Error rendering cell"
+                                        >
+                                          [Error]
+                                        </td>
+                                      );
+                                    }
+                                  })}
+                                </tr>
+                              );
+                            } catch (rowError) {
+                              console.error(`Error rendering row ${rowIndex}:`, rowError, { row: filteredData[rowIndex] });
+                              return (
+                                <tr key={rowIndex} className="hover:bg-gray-50 bg-red-50">
+                                  <td colSpan={filteredColumns.length} className="px-2 py-2 text-sm text-red-600">
+                                    Error rendering row: {rowError instanceof Error ? rowError.message : 'Unknown error'}
+                                  </td>
+                                </tr>
+                              );
+                            }
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
