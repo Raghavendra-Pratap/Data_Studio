@@ -41,6 +41,16 @@ export interface FormulaStep {
 // Core formula definitions based on DATA_STUDIO_FORMULA_REFERENCE.md
 export const CORE_FORMULAS: FormulaDefinition[] = [
   {
+    name: 'EXACT',
+    category: 'Data Reference',
+    description: 'Returns the exact value from a column (like Excel\'s "=" operator).',
+    syntax: 'EXACT [column]',
+    parameters: [
+      { name: 'column', type: 'column', description: 'The column to reference', required: true }
+    ],
+    examples: ['EXACT [Name]', 'EXACT [Email]']
+  },
+  {
     name: 'TEXT_JOIN',
     category: 'Text & String',
     description: 'Joins text values together, with optional delimiter and empty handling.',

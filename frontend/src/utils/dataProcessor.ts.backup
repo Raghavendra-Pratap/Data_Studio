@@ -286,11 +286,6 @@ class DataProcessor {
     const functionName = step.source.toUpperCase();
     const parameters = step.parameters || [];
     
-    // SPECIAL HANDLING FOR EXACT FORMULA
-    if (functionName === 'EXACT') {
-      return this.processExactFormula(step, fileData, sampleSize);
-    }
-    
     // Get the input data - this should be from the previous step
     const sourceData = fileData[0].data;
     const sampleData = sourceData.slice(0, sampleSize);
@@ -299,65 +294,73 @@ class DataProcessor {
     console.log(`Sample input data:`, sampleData.slice(0, 2));
     
     return sampleData.map((row, rowIndex) => {
-      // For function steps, we need to determine which column to process
-      // Priority: 1. columnReference, 2. parameters, 3. first available column
-      let inputColumn = '';
-      
-      if (step.columnReference && step.columnReference.columnName) {
-        // Use the column reference from the step
-        inputColumn = step.columnReference.columnName;
-        console.log(`Using column reference: ${inputColumn}`);
-      } else if (parameters.length > 0) {
-        // Use the first parameter as column name for other functions
-        inputColumn = parameters[0];
-        console.log(`Using parameter as column: ${inputColumn}`);
-      } else {
-        // Fallback: use the first available column
-        const availableColumns = Object.keys(row);
-        inputColumn = availableColumns[0] || 'unknown';
-        console.log(`No parameter specified, using first available column: ${inputColumn}`);
-      }
-      
-      const inputValue = row[inputColumn] || '';
-      let outputValue = inputValue;
-      
-      console.log(`Row ${rowIndex}: processing column "${inputColumn}" with value "${inputValue}"`);
-      
       try {
-        // Apply transformations based on function name
-        switch (functionName) {
-            
+        // For function steps, we need to determine which column to process
+        // Priority: 1. columnReference, 2. parameters, 3. first available column
+        let inputColumn = '';
+        
+        if (step.columnReference && step.columnReference.columnName) {
+          // Use the column reference from the step
+          inputColumn = step.columnReference.columnName;
+          console.log(`Using column reference: ${inputColumn}`);
+        } else if (parameters.length > 0) {
+          // Use the first parameter as column name
+          inputColumn = parameters[0];
+          console.log(`Using parameter as column: ${inputColumn}`);
+        } else {
+          // Fallback: use the first available column
+          const availableColumns = Object.keys(row);
+          inputColumn = availableColumns[0] || 'unknown';
+          console.log(`No parameter specified, using first available column: ${inputColumn}`);
+        }
+        
+        if (!inputColumn) {
+          console.warn(`No input column found for function ${functionName}`);
+          return { [step.target || step.source]: `[No input column]` };
+        }
+        
+        // Get the input value from the specified column
+        const inputValue = row[inputColumn];
+        console.log(`Row ${rowIndex}: Processing column "${inputColumn}" = ${inputValue}`);
+        
+        let outputValue: any;
+        
+        // Handle the EXACT function first - it simply returns the input value
+        if (functionName === 'EXACT') {
+          outputValue = inputValue;
+          console.log(`EXACT function: ${inputValue} -> ${outputValue}`);
+        } else {
+          // Process other functions as before
+          switch (functionName) {
           case 'UPPER':
           case 'UPPERCASE':
             outputValue = String(inputValue).toUpperCase();
             break;
-            
           case 'LOWER':
           case 'LOWERCASE':
             outputValue = String(inputValue).toLowerCase();
             break;
-            
           case 'TRIM':
             outputValue = String(inputValue).trim();
             break;
-            
           case 'TEXT_LENGTH':
           case 'LEN':
             outputValue = String(inputValue).length;
             break;
-            
           case 'TITLE_CASE':
+            outputValue = String(inputValue).replace(/\w\S*/g, (txt) => 
+              txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+            );
+            break;
           case 'PROPER':
           case 'PROPER_CASE':
             outputValue = String(inputValue).replace(/\w\S*/g, (txt) => 
               txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
             );
             break;
-            
           case 'REVERSE':
             outputValue = String(inputValue).split('').reverse().join('');
             break;
-            
           case 'CAPITALIZE':
             outputValue = String(inputValue).charAt(0).toUpperCase() + String(inputValue).slice(1);
             break;
@@ -546,7 +549,6 @@ class DataProcessor {
           'Input_Column': inputValue,
           'Output_Column': outputValue
         };
-        
       } catch (error) {
         console.error(`Error processing row ${rowIndex} with function ${functionName}:`, error);
         return {
@@ -1275,115 +1277,6 @@ class DataProcessor {
       console.error('Error in BIN function:', error);
       return row[parameters[0]] || '';
     }
-  }
-
-  // Process EXACT formula - special handling for direct column access
-  private async processExactFormula(
-    step: WorkflowStep,
-    fileData: FileData[],
-    sampleSize: number
-  ): Promise<any[]> {
-    if (fileData.length === 0) return [];
-    
-    console.log(`Processing EXACT formula for step:`, step);
-    console.log(`Available files:`, fileData.map(f => ({ name: f.name, dataLength: f.data?.length })));
-    
-    // For EXACT formula, we need to find the source file and extract the column data
-    const parameters = step.parameters || [];
-    if (parameters.length === 0) {
-      console.error('EXACT formula requires a column parameter');
-      return [];
-    }
-    
-    // Extract file name and column name from the parameter
-    const fullPath = parameters[0];
-    const parts = fullPath.split(' ▸ ');
-    
-    if (parts.length < 2) {
-      console.error('Invalid column path format for EXACT formula:', fullPath);
-      return [];
-    }
-    
-    const fileName = parts[0];
-    const columnName = parts[parts.length - 1];
-    
-    console.log(`EXACT formula: file="${fileName}", column="${columnName}"`);
-    
-    // Find the source file
-    const sourceFile = fileData.find(file => file.name === fileName);
-    if (!sourceFile) {
-      console.error(`Source file not found: ${fileName}`);
-      return [];
-    }
-    
-    if (!sourceFile.data || sourceFile.data.length === 0) {
-      console.error(`No data in source file: ${fileName}`);
-      return [];
-    }
-    
-    const sourceData = sourceFile.data;
-    const sampleData = sourceData.slice(0, sampleSize);
-    
-    console.log(`EXACT formula: processing ${sampleData.length} rows from file ${fileName}, column: ${columnName}`);
-    console.log(`Sample data keys:`, Object.keys(sampleData[0] || {}));
-    
-    // Try to find the column with flexible matching
-    let foundColumnName = columnName;
-    const availableColumns = Object.keys(sampleData[0] || {});
-    
-    // First try exact match
-    if (availableColumns.includes(columnName)) {
-      console.log(`Found exact column match: "${columnName}"`);
-    } else {
-      // Try case-insensitive match
-      const caseInsensitiveMatch = availableColumns.find(col => 
-        col.toLowerCase() === columnName.toLowerCase()
-      );
-      if (caseInsensitiveMatch) {
-        foundColumnName = caseInsensitiveMatch;
-        console.log(`Found case-insensitive match: "${columnName}" -> "${foundColumnName}"`);
-      } else {
-        // Try partial match (for columns with extra spaces or formatting)
-        const partialMatch = availableColumns.find(col => 
-          col.toLowerCase().includes(columnName.toLowerCase()) ||
-          columnName.toLowerCase().includes(col.toLowerCase())
-        );
-        if (partialMatch) {
-          foundColumnName = partialMatch;
-          console.log(`Found partial match: "${columnName}" -> "${foundColumnName}"`);
-        } else {
-          console.warn(`Column "${columnName}" not found. Available columns:`, availableColumns);
-          return [];
-        }
-      }
-    }
-    
-    // Process the data and return with proper column naming
-    return sampleData.map(row => {
-      const newRow: any = {};
-      
-      if (foundColumnName in row) {
-        // Set the target column name (from step.target)
-        if (step.target) {
-          newRow[step.target] = row[foundColumnName];
-          newRow[`${step.target}_exact`] = row[foundColumnName]; // Add suffix for Live Preview
-        } else {
-          newRow[columnName] = row[foundColumnName];
-          newRow[`${columnName}_exact`] = row[foundColumnName]; // Add suffix for Live Preview
-        }
-        console.log(`Row data: ${foundColumnName} = ${row[foundColumnName]}`);
-      } else {
-        console.warn(`Column "${foundColumnName}" not found in row:`, Object.keys(row));
-        if (step.target) {
-          newRow[step.target] = `[Column not found: ${foundColumnName}]`;
-          newRow[`${step.target}_exact`] = `[Column not found: ${foundColumnName}]`;
-        } else {
-          newRow[columnName] = `[Column not found: ${foundColumnName}]`;
-          newRow[`${columnName}_exact`] = `[Column not found: ${foundColumnName}]`;
-        }
-      }
-      return newRow;
-    });
   }
 
   // Clean up resources

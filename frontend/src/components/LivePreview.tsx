@@ -50,7 +50,29 @@ const LivePreview: React.FC<LivePreviewProps> = ({
         col.includes('_if') ||
         col.includes('_and') ||
         col.includes('_or') ||
-        col.includes('_not')
+        col.includes('_not') ||
+        col.includes('_sum') ||
+        col.includes('_count') ||
+        col.includes('_unique_count') ||
+        col.includes('_average') ||
+        col.includes('_median') ||
+        col.includes('_min') ||
+        col.includes('_max') ||
+        col.includes('_std_dev') ||
+        col.includes('_variance') ||
+        col.includes('_pivot') ||
+        col.includes('_unpivot') ||
+        col.includes('_group_by') ||
+        col.includes('_sort') ||
+        col.includes('_filter') ||
+        col.includes('_remove_duplicates') ||
+        col.includes('_fill_na') ||
+        col.includes('_remove_na') ||
+        col.includes('_normalize') ||
+        col.includes('_standardize') ||
+        col.includes('_bin') ||
+        col.includes('_selected') ||  // Include selected columns from column selection steps
+        col.includes('_exact')  // Include exact columns from EXACT formula
       );
       
       // Filter data to only include filtered columns
@@ -80,30 +102,104 @@ const LivePreview: React.FC<LivePreviewProps> = ({
       const step = workflowSteps[stepIndex];
       
       // Convert importedFiles to FileData format for data processor
-      const fileData: FileData[] = importedFiles.map(file => ({
-        name: file.name,
-        type: file.type,
-        data: file.data || [],
-        columns: file.columns || [],
-        sheets: file.sheets,
-        currentSheet: file.currentSheet
-      }));
+      // IMPORTANT: For CSV files, we need to ensure data is loaded before processing
+      const fileData: FileData[] = importedFiles.map(file => {
+        // If this is a CSV file and data is empty, we need to load it on-demand
+        if (file.type === 'text/csv' && (!file.data || file.data.length === 0)) {
+          // Load CSV data on-demand (this is a simplified version - in real app, use the actual loadFileDataOnDemand function)
+          try {
+            const rawText = (file as any).rawText;
+            if (rawText) {
+              // Use Papa Parse to load the data
+              const Papa = (window as any).Papa;
+              if (Papa) {
+                const parsed = Papa.parse(rawText, {
+                  header: true,
+                  skipEmptyLines: true,
+                  dynamicTyping: false,
+                  preview: 100 // Load up to 100 rows for preview
+                });
+                
+                // Update the file data
+                file.data = parsed.data as any[];
+                console.log(`CSV data loaded on-demand for preview: ${parsed.data.length} rows`);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading CSV data on-demand:', error);
+          }
+        }
+        
+        return {
+          name: file.name,
+          type: file.type,
+          data: file.data || [],
+          columns: file.columns || [],
+          sheets: file.sheets,
+          currentSheet: file.currentSheet
+        };
+      });
       
-      console.log(`Generating preview for step ${stepIndex + 1}:`, { step, fileDataLength: fileData.length, hasPreviousData: !!previousStepData });
+      console.log(`Generating preview for step ${stepIndex + 1}:`, { 
+        step, 
+        fileDataLength: fileData.length, 
+        hasPreviousData: !!previousStepData,
+        stepType: step.type,
+        stepSource: step.source,
+        stepTarget: step.target,
+        columnReference: step.columnReference
+      });
       
-      // If this is a function step and we have previous step data, use that instead of file data
+      // Log detailed file data for debugging
+      fileData.forEach((file, index) => {
+        console.log(`File ${index}:`, {
+          name: file.name,
+          type: file.type,
+          dataLength: file.data.length,
+          columns: file.columns,
+          firstRowKeys: file.data.length > 0 ? Object.keys(file.data[0]) : []
+        });
+      });
+      
+      // Determine input data for this step
       let inputData: FileData[] = fileData;
-      if (step.type === 'function' && previousStepData && previousStepData.length > 0) {
-        // Create a virtual file with the previous step's output data
-        inputData = [{
-          name: `step_${stepIndex - 1}_output`,
-          type: 'workflow_step',
-          data: previousStepData,
-          columns: Object.keys(previousStepData[0] || {}),
-          sheets: {},
-          currentSheet: undefined
-        }];
-        console.log(`Function step using previous step data:`, inputData);
+      
+      if (step.type === 'function') {
+        // SPECIAL HANDLING FOR EXACT FORMULA - it needs original file data
+        if (step.source === 'EXACT') {
+          inputData = fileData;
+          console.log(`EXACT formula step using original file data:`, inputData);
+        } else if (previousStepData && previousStepData.length > 0) {
+          // Other function steps can use previous step data if available
+          inputData = [{
+            name: `step_${stepIndex - 1}_output`,
+            type: 'workflow_step',
+            data: previousStepData,
+            columns: Object.keys(previousStepData[0] || {}),
+            sheets: {},
+            currentSheet: undefined
+          }];
+          console.log(`Function step using previous step data:`, inputData);
+        } else {
+          // Function step with no previous data, use original file data
+          inputData = fileData;
+          console.log(`Function step using original file data (no previous data):`, inputData);
+        }
+      } else if (step.type === 'column') {
+        // Column selection steps should always use original file data
+        inputData = fileData;
+        console.log(`Column selection step using original file data:`, inputData);
+        
+        // For column steps, also log what we're looking for
+        if (step.columnReference) {
+          console.log(`Looking for column: "${step.columnReference.columnName}" in file: "${step.columnReference.fileName}"`);
+        } else {
+          console.log(`Looking for column: "${step.source}" in any file`);
+        }
+      } else {
+        // Other step types use original file data
+        inputData = fileData;
+        console.log(`Other step type using original file data:`, inputData);
       }
       
       // Process the step using data processor
@@ -127,23 +223,49 @@ const LivePreview: React.FC<LivePreviewProps> = ({
     setPreviewError(null);
     
     try {
-      console.log('Generating workflow preview...', { workflowSteps, sampleSize });
+      console.log('Generating workflow preview...', { 
+        workflowSteps, 
+        sampleSize, 
+        importedFilesCount: importedFiles.length,
+        importedFilesData: importedFiles.map(f => ({ name: f.name, hasData: !!f.data, dataLength: f.data?.length || 0 }))
+      });
       
       const results: ProcessedData[] = [];
       let previousStepData: any[] = [];
       
       // Generate preview for each step, passing previous step's output
       for (let i = 0; i < workflowSteps.length; i++) {
-        const result = await generateStepPreview(i, previousStepData);
-        results.push(result);
+        console.log(`Processing step ${i + 1}/${workflowSteps.length}:`, workflowSteps[i]);
         
-        // Store this step's output for the next step
-        previousStepData = result.data;
-        console.log(`Step ${i + 1} completed, output data:`, result.data.slice(0, 2));
+        try {
+          const result = await generateStepPreview(i, previousStepData);
+          results.push(result);
+          
+          // Store this step's output for the next step
+          previousStepData = result.data;
+          console.log(`Step ${i + 1} completed successfully:`, {
+            outputRows: result.data.length,
+            outputColumns: result.columns.length,
+            sampleData: result.data.slice(0, 2)
+          });
+        } catch (stepError) {
+          console.error(`Step ${i + 1} failed:`, stepError);
+          // Add error result but continue processing
+          results.push({
+            data: [],
+            columns: ['Error'],
+            rowCount: 0,
+            executionTime: 0,
+            memoryUsage: 0,
+            sampleSize: 0,
+            stepIndex: i
+          });
+          // Don't pass error data to next step
+          previousStepData = [];
+        }
       }
       
       setPreviewResults(results);
-      
       console.log('Workflow preview generated successfully:', results);
     } catch (error) {
       console.error('Error generating workflow preview:', error);
@@ -151,7 +273,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [workflowSteps, sampleSize, generateStepPreview]);
+  }, [workflowSteps, sampleSize, generateStepPreview, importedFiles]);
 
   // Auto-generate preview when workflow steps change
   useEffect(() => {

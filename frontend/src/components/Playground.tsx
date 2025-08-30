@@ -949,20 +949,22 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       setFunctionParameters(prev => [...prev, column]);
       console.log(`Added column "${column}" as parameter for function "${activeFunction}"`);
     } else {
-      // Add column selection to workflow as a new step
+      // Auto-select EXACT formula when clicking on a column without an active formula
+      // This creates a workflow step that fetches the exact column values
       addWorkflowStep({
-        type: 'column',
-        source: columnRef.columnName, // Use actual column name for data processing
-        target: columnRef.columnName, // Use actual column name for target
+        type: 'function',
+        source: 'EXACT', // Use EXACT formula
+        target: columnRef.columnName, // Target column name
         sheet: columnRef.sheetName, // Include sheet info for Excel files
-        columnReference: columnRef // Store full reference for UI display
+        columnReference: columnRef, // Store full reference for UI display
+        parameters: [column] // Pass the column path as parameter
       });
-      console.log(`Added column step:`, {
+      console.log(`Auto-selected EXACT formula for column:`, {
         displayPath: column,
         columnName: columnRef.columnName,
         fileName: columnRef.fileName,
         sheetName: columnRef.sheetName,
-        source: columnRef.columnName, // This is what dataProcessor will use
+        formula: 'EXACT',
         target: columnRef.columnName
       });
     }
