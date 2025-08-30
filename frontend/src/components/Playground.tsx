@@ -598,7 +598,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       console.error('Error generating selected columns preview:', error);
       setSelectedColumnsPreview(null);
     }
-  }, [selectedColumns, importedFiles, sampleSize]);
+  }, [selectedColumns, importedFiles, sampleSize, loadFileDataOnDemand]);
 
   // Convert workflow steps to backend format
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
