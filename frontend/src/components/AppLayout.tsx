@@ -412,7 +412,7 @@ const AppLayout: React.FC = () => {
         {/* Top Bar */}
         <div className="bg-white h-16 px-6 flex items-center justify-between border-b">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold">Data Studio</h1>
+            <h1 className="text-xl font-semibold">Unified Data Studio</h1>
             {/* Backend Status Indicator */}
             <BackendStatusIndicator />
             {/* Dynamic breadcrumb navigation */}

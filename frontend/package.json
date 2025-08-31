@@ -1,8 +1,8 @@
 {
   "name": "unified-data-studio",
-  "version": "1.0.14",
+  "version": "2.0.2-beta.2",
   "description": "A comprehensive data management, visualization, and workflow automation platform",
-  "author": "Data Studio Team",
+  "author": "Unified Data Studio Team",
   "private": true,
   "main": "public/electron.js",
   "homepage": "./",

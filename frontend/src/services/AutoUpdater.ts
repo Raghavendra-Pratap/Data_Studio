@@ -98,7 +98,13 @@ export class AutoUpdaterService {
   }
 
   private getCurrentVersion(): string {
-    return '1.0.0';
+    // Get version from package.json or use a fallback
+    try {
+      // In a real app, this would come from package.json or build-time injection
+      return '2.0.2-beta.2';
+    } catch {
+      return '2.0.2-beta.2';
+    }
   }
 
   private isNewerVersion(newVersion: string, currentVersion: string): boolean {
@@ -119,7 +125,7 @@ export class AutoUpdaterService {
     window.dispatchEvent(event);
 
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Data Studio Update Available', {
+      new Notification('Unified Data Studio Update Available', {
         body: `Version ${updateInfo.version} is available for download`,
         icon: '/favicon.ico'
       });
