@@ -36,7 +36,6 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: unified-data-studio-v2/frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -148,7 +147,6 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: unified-data-studio-v2/frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -251,7 +249,6 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: unified-data-studio-v2/frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
