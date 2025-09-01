@@ -12,6 +12,7 @@ import ExecuteWorkflowDialog, { ExecuteWorkflowTemplate } from './ExecuteWorkflo
 import { formulaService, FormulaDefinition } from '../utils/formulaService';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { backendService, BackendWorkflowRequest } from '../services/BackendService';
+import { enhancedSQLiteService, DataOperation } from '../services/EnhancedSQLiteService';
 import ErrorBoundary from './ErrorBoundary';
 import { 
   FileText, 
@@ -40,7 +41,9 @@ import {
   RefreshCw,
   Download,
   Play,
-  Save
+  Save,
+  Database,
+  AlertCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useBackendStatus } from '../hooks/useBackendStatus';
@@ -194,6 +197,20 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   const [workflowScrollTop, setWorkflowScrollTop] = useState(0);
 
   const [isExecuting, setIsExecuting] = useState(false);
+  
+  // Enhanced SQLite Workflow State
+  const [enhancedSQLiteMode, setEnhancedSQLiteMode] = useState(false);
+  const [sqliteTables, setSqliteTables] = useState<string[]>([]);
+  const [currentTable, setCurrentTable] = useState<string>('');
+  const [sqliteWorkflowSteps, setSqliteWorkflowSteps] = useState<Array<{
+    id: string;
+    type: 'import' | 'transform' | 'query' | 'export';
+    operation: string;
+    parameters: Record<string, any>;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    result?: any;
+  }>>([]);
+  const [sqliteExecutionResults, setSqliteExecutionResults] = useState<any>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -1095,6 +1112,142 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     }, 1000);
   };
 
+  // Enhanced SQLite Workflow Functions
+  const initializeEnhancedSQLiteMode = async () => {
+    try {
+      setEnhancedSQLiteMode(true);
+      // Load existing tables
+      const result = await enhancedSQLiteService.listTables();
+      if (result.success && result.data) {
+        const tableNames = result.data.map((table: any) => table.name);
+        setSqliteTables(tableNames);
+        if (tableNames.length > 0) {
+          setCurrentTable(tableNames[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize Enhanced SQLite mode:', error);
+    }
+  };
+
+  const addSQLiteWorkflowStep = (type: 'import' | 'transform' | 'query' | 'export', operation: string, parameters: Record<string, any> = {}) => {
+    const newStep = {
+      id: `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      operation,
+      parameters,
+      status: 'pending' as const,
+    };
+    
+    setSqliteWorkflowSteps(prev => [...prev, newStep]);
+  };
+
+  const executeSQLiteWorkflow = async () => {
+    if (sqliteWorkflowSteps.length === 0) {
+      console.log('No workflow steps to execute');
+      return;
+    }
+
+    setExecutionStatus('preparing');
+    setExecutionProgress(0);
+    setIsExecuting(true);
+
+    try {
+      const results: any[] = [];
+      let currentData: any = null;
+
+      for (let i = 0; i < sqliteWorkflowSteps.length; i++) {
+        const step = sqliteWorkflowSteps[i];
+        
+        // Update step status
+        setSqliteWorkflowSteps(prev => 
+          prev.map(s => s.id === step.id ? { ...s, status: 'processing' } : s)
+        );
+
+        setExecutionProgress((i / sqliteWorkflowSteps.length) * 100);
+
+        try {
+          let result: any;
+
+          switch (step.type) {
+            case 'import':
+              // For now, we'll simulate CSV import
+              // In a real implementation, this would handle file uploads
+              result = {
+                success: true,
+                data: { message: 'CSV import simulated successfully' },
+                row_count: 100
+              };
+              break;
+
+            case 'transform':
+              const transformOperation: DataOperation = {
+                operation_type: step.operation,
+                parameters: { table_name: currentTable, ...step.parameters }
+              };
+              result = await enhancedSQLiteService.transformData(transformOperation);
+              break;
+
+            case 'query':
+              result = await enhancedSQLiteService.executeQuery({ 
+                sql: step.parameters.sql || 'SELECT * FROM current_table LIMIT 10' 
+              });
+              break;
+
+            case 'export':
+              if (currentTable) {
+                result = await enhancedSQLiteService.exportToCSV(currentTable);
+              } else {
+                result = { success: false, error_message: 'No table selected for export' };
+              }
+              break;
+
+            default:
+              result = { success: false, error_message: 'Unknown step type' };
+          }
+
+          // Update step with result
+          setSqliteWorkflowSteps(prev => 
+            prev.map(s => s.id === step.id ? { ...s, status: 'completed', result } : s)
+          );
+
+          if (result.success && result.data) {
+            currentData = result.data;
+            results.push(result);
+          } else {
+            throw new Error(result.error_message || 'Step failed');
+          }
+
+        } catch (error) {
+          // Update step status to failed
+          setSqliteWorkflowSteps(prev => 
+            prev.map(s => s.id === step.id ? { ...s, status: 'failed', result: { error: error instanceof Error ? error.message : 'Unknown error' } } : s)
+          );
+          throw error;
+        }
+      }
+
+      setExecutionStatus('completed');
+      setExecutionProgress(100);
+      setSqliteExecutionResults(results);
+      
+      console.log('Enhanced SQLite workflow executed successfully:', results);
+
+    } catch (error) {
+      setExecutionStatus('error');
+      console.error('Enhanced SQLite workflow execution failed:', error);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const clearSQLiteWorkflow = () => {
+    setSqliteWorkflowSteps([]);
+    setSqliteExecutionResults(null);
+    setExecutionStatus('idle');
+    setExecutionProgress(0);
+  };
+
   // Render file columns with clickable functionality
   const renderFileColumns = (file: PlaygroundFile) => {
     if (file.sheets && Object.keys(file.sheets).length > 0) {
@@ -1474,10 +1627,36 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
           <Card className="col-span-6 h-full max-w-none workflow-builder-container">
             <CardContent className="p-3 h-full flex flex-col overflow-hidden workflow-builder-content">
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                <h3 className="font-semibold flex items-center">
-                  <Play className="w-4 h-4 mr-2" />
-                  Workflow Builder
-                </h3>
+                <div className="flex items-center space-x-4">
+                  <h3 className="font-semibold flex items-center">
+                    <Play className="w-4 h-4 mr-2" />
+                    Workflow Builder
+                  </h3>
+                  
+                  {/* Enhanced SQLite Mode Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setEnhancedSQLiteMode(!enhancedSQLiteMode)}
+                      className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                        enhancedSQLiteMode 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                      title="Toggle Enhanced SQLite mode"
+                    >
+                      {enhancedSQLiteMode ? 'SQLite Mode' : 'Standard Mode'}
+                    </button>
+                    {enhancedSQLiteMode && (
+                      <button
+                        onClick={initializeEnhancedSQLiteMode}
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        title="Initialize Enhanced SQLite"
+                      >
+                        Init
+                      </button>
+                    )}
+                  </div>
+                </div>
                 
                                 {/* Workflow Builder Toolbar */}
                 <div className="flex items-center space-x-2 max-w-full overflow-hidden workflow-builder-toolbar">
@@ -1966,6 +2145,121 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                         <div className="text-xs text-gray-500 text-center">
                           Data flows sequentially through each step, with each step building upon the previous one
                         </div>
+                      </div>
+                    )}
+
+                    {/* Enhanced SQLite Workflow Steps */}
+                    {enhancedSQLiteMode && (
+                      <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-semibold text-purple-800 flex items-center">
+                            <Database className="w-4 h-4 mr-2" />
+                            Enhanced SQLite Workflow
+                          </h4>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={clearSQLiteWorkflow}
+                              className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                              title="Clear workflow"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              onClick={executeSQLiteWorkflow}
+                              disabled={sqliteWorkflowSteps.length === 0 || isExecuting}
+                              className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                              title="Execute workflow"
+                            >
+                              Execute
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* SQLite Workflow Steps */}
+                        <div className="space-y-3">
+                          {sqliteWorkflowSteps.map((step, index) => (
+                            <div 
+                              key={step.id} 
+                              className={`p-3 border rounded-lg ${
+                                step.status === 'completed' ? 'bg-green-50 border-green-200' :
+                                step.status === 'processing' ? 'bg-blue-50 border-blue-200' :
+                                step.status === 'failed' ? 'bg-red-50 border-red-200' :
+                                'bg-white border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                                    step.status === 'completed' ? 'bg-green-500' :
+                                    step.status === 'processing' ? 'bg-blue-500' :
+                                    step.status === 'failed' ? 'bg-red-500' :
+                                    'bg-gray-500'
+                                  }`}>
+                                    {index + 1}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-gray-800">{step.operation}</span>
+                                    <span className="text-xs text-gray-600">{step.type}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  {step.status === 'completed' && (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                  )}
+                                  {step.status === 'processing' && (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                  )}
+                                  {step.status === 'failed' && (
+                                    <AlertCircle className="w-4 h-4 text-red-500" />
+                                  )}
+                                </div>
+                              </div>
+                              {step.result && (
+                                <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                                  <pre className="whitespace-pre-wrap">{JSON.stringify(step.result, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add SQLite Workflow Steps */}
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => addSQLiteWorkflowStep('transform', 'filter', { condition: 'column > 0' })}
+                            className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Add Filter
+                          </button>
+                          <button
+                            onClick={() => addSQLiteWorkflowStep('transform', 'sort', { order_by: 'column ASC' })}
+                            className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Add Sort
+                          </button>
+                          <button
+                            onClick={() => addSQLiteWorkflowStep('query', 'custom', { sql: 'SELECT * FROM table LIMIT 10' })}
+                            className="px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                          >
+                            Add Query
+                          </button>
+                          <button
+                            onClick={() => addSQLiteWorkflowStep('export', 'csv', {})}
+                            className="px-3 py-2 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                          >
+                            Add Export
+                          </button>
+                        </div>
+
+                        {/* SQLite Execution Results */}
+                        {sqliteExecutionResults && (
+                          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <h5 className="font-medium text-gray-800 mb-2">Execution Results</h5>
+                            <div className="text-xs text-gray-600">
+                              <pre className="whitespace-pre-wrap">{JSON.stringify(sqliteExecutionResults, null, 2)}</pre>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

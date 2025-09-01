@@ -7,13 +7,66 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 1.0.1)'
+        description: 'Version to release (e.g., 2.0.1)'
         required: true
-        default: '1.0.1'
+        default: '2.0.1'
 
 jobs:
-  # Job 1: Build and package for each platform
+  # Validate release tag naming
+  validate-tag:
+    runs-on: ubuntu-latest
+    name: Tag Validation
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate tag naming
+      run: |
+        echo "🏷️ Validating release tag naming..."
+        echo "====================================="
+        
+        # Extract tag name from GITHUB_REF
+        TAG_NAME="${GITHUB_REF#refs/tags/}"
+        echo "🔍 Release tag: $TAG_NAME"
+        
+        # Check if this is a stable release (no suffix)
+        if [[ "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "⚠️  WARNING: STABLE RELEASE DETECTED!"
+          echo "   Tag: $TAG_NAME"
+          echo "   This will be treated as a production-ready release"
+          echo ""
+          echo "🔒 Extra validation required for stable release..."
+          echo "   - All CI tests must have passed"
+          echo "   - All validations must have passed"
+          echo "   - Code review should be complete"
+          echo "   - Testing should be thorough"
+          echo ""
+          echo "✅ Proceeding with stable release build..."
+          
+        elif [[ "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(beta|rc|alpha|dev) ]]; then
+          echo "✅ Testing release detected: $TAG_NAME"
+          echo "   Safe to proceed - users will know this is for testing"
+          
+        else
+          echo "❌ Invalid tag format: $TAG_NAME"
+          echo "   Expected format: vX.Y.Z[-suffix]"
+          echo "   Examples: v2.0.1, v2.0.1-beta, v2.0.1-rc.1"
+          echo ""
+          echo "💡 Tag Naming Guidelines:"
+          echo "   • v2.0.1-beta     = Beta testing release"
+          echo "   • v2.0.1-rc.1     = Release candidate"
+          echo "   • v2.0.1-alpha    = Alpha testing"
+          echo "   • v2.0.1          = Stable production release"
+          exit 1
+        fi
+        
+        echo ""
+        echo "🚀 Tag validation passed - proceeding with release build!"
+
+  # Build packages (depends on tag validation)
   build-packages:
+    needs: validate-tag
     strategy:
       matrix:
         platform: [ubuntu-latest, windows-latest, macos-latest]
@@ -28,8 +81,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    # Debug step removed - main issues have been identified and fixed
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -101,8 +152,6 @@ jobs:
           npx electron-builder --mac --publish=never
         fi
 
-    # Version bumping removed - we don't want to increment versions on main branch for test releases
-
     - name: Notify package build completion
       run: |
         echo "🎉 Package build for ${{ matrix.platform }} completed successfully!"
@@ -116,7 +165,6 @@ jobs:
         path: frontend/dist/
         retention-days: 1
 
-  # Job 2: Create release and upload all assets (runs after all builds complete)
   create-release:
     needs: build-packages
     runs-on: ubuntu-latest
@@ -129,10 +177,51 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Setup GitHub CLI
+      run: |
+        echo "🔧 Setting up GitHub CLI for asset uploads..."
+        # Install GitHub CLI
+        if command -v apt-get &> /dev/null; then
+          # Ubuntu/Debian
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install gh -y
+        elif command -v brew &> /dev/null; then
+          # macOS
+          brew install gh
+        elif command -v winget &> /dev/null; then
+          # Windows
+          winget install GitHub.cli
+        else
+          # Fallback: download binary
+          curl -fsSL https://github.com/cli/cli/releases/latest/download/gh_linux_amd64.tar.gz | tar -xz
+          sudo mv gh_linux_amd64/bin/gh /usr/local/bin/
+        fi
+        
+        # Authenticate with GitHub token
+        echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+        
+        echo "✅ GitHub CLI setup complete"
+    
     - name: Download all build artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts/
+    
+    - name: Clean up technical files for public release
+      run: |
+        echo "🧹 Cleaning up technical files for public release..."
+        
+        # Remove or hide source code files (they're automatically added by GitHub)
+        echo "📝 Note: Source code files are automatically added by GitHub and cannot be hidden"
+        echo "   However, only user-friendly installers will be uploaded as additional assets"
+        
+        # List what will be visible to users
+        echo "👥 Files visible to users will be:"
+        echo "   - Platform-specific installers (.exe, .dmg, .AppImage)"
+        echo "   - Source code archives (automatically added by GitHub)"
+        echo "   - Technical files (.blockmap, .yml) will be filtered out"
     
     - name: Create Release
       id: create_release
@@ -141,9 +230,15 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref }}
-        release_name: Data Studio v2 ${{ github.ref_name }}
+        release_name: Unified Data Studio v2 ${{ github.ref_name }}
         body: |
-          ## 🚀 Data Studio v2 Release ${{ github.ref_name }}
+          ## 🚀 Unified Data Studio v2 Release ${{ github.ref_name }}
+          
+          ### 📅 Release Information
+          - **Version**: ${{ github.ref_name }}
+          - **Release Date**: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at || 'Now' }}
+          - **Commit**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
           
           ### ✨ New Features
           - Advanced data processing with Rust backend
@@ -159,9 +254,26 @@ jobs:
           - SQLite database integration
           
           ### 📦 Downloads
-          - Windows: `.exe` installer
-          - macOS: `.dmg` package
-          - Linux: `.AppImage` package
+          **Choose your platform:**
+          
+          🪟 **Windows Users**
+          - Download the `.exe` installer
+          - Run the installer and follow the setup wizard
+          
+          🍎 **macOS Users**
+          - Download the `.dmg` package
+          - Drag the app to your Applications folder
+          
+          🐧 **Linux Users**
+          - Download the `.AppImage` file
+          - Make it executable: `chmod +x filename.AppImage`
+          - Run: `./filename.AppImage`
+          
+          ### 🎯 User Experience Improvements
+          - **Individual downloads** - No more large compressed archives
+          - **Platform-specific packages** - Optimized for each OS
+          - **Faster downloads** - Only download what you need
+          - **Easier installation** - Direct platform installers
           
           ### 🐛 Bug Fixes
           - Fixed UI rendering issues
@@ -169,23 +281,31 @@ jobs:
           - Enhanced error handling
           
           ### 📋 Installation
-          1. Download the appropriate package for your platform
-          2. Run the installer/package
-          3. Launch Data Studio v2
+          1. **Download** the appropriate package for your platform (above)
+          2. **Install** using platform-specific method
+          3. **Launch** Unified Data Studio v2
           
           ### 🔄 Auto-updates
           The app will automatically check for updates and notify you when new versions are available.
           
+          ### 📋 Release Assets
+          **User Downloads**: Only platform-specific installers are shown in the Assets section
+          **Hidden Files**: Technical files (.blockmap, .yml) are filtered out for cleaner user experience
+          **Source Code**: Automatically included by GitHub for developers
+          
           ### 📚 Documentation
-          - [Setup Guide](SETUP.md)
-          - [Cross-platform Build Guide](CROSS_PLATFORM_BUILD.md)
-          - [Integration Guide](INTEGRATION_GUIDE.md)
+          - [Setup Guide](docs/SETUP.md)
+          - [Build Guide](docs/BUILD.md)
+          - [Integration Guide](docs/INTEGRATION.md)
           
           ### 🤝 Contributing
           We welcome contributions! Please see our contributing guidelines.
           
           ### 📄 License
-          MIT License - see LICENSE file for details.
+          MIT License - see [LICENSE](LICENSE) file for details.
+          
+          ---
+          *This release was automatically generated by GitHub Actions*
     
     - name: List Artifacts Contents
       run: |
@@ -201,38 +321,73 @@ jobs:
         echo "macOS packages:"
         ls -la artifacts/macos-latest-packages/ || echo "No macos packages found"
     
-    - name: Upload Ubuntu Assets
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ubuntu-latest-packages/
-        asset_name: ubuntu-packages
-        asset_content_type: application/octet-stream
-    
-    - name: Upload Windows Assets
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/windows-latest-packages/
-        asset_name: windows-packages
-        asset_content_type: application/octet-stream
-    
-    - name: Upload macOS Assets
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/macos-latest-packages/
-        asset_name: macos-packages
-        asset_content_type: application/octet-stream
+    - name: Upload Individual Platform Assets
+      run: |
+        echo "🚀 Uploading individual platform assets..."
+        
+        # Upload Windows assets (only user-friendly installers)
+        if [ -d "artifacts/windows-latest-packages" ]; then
+          echo "📦 Uploading Windows assets..."
+          for file in artifacts/windows-latest-packages/*; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              # Only upload main installers, skip technical files
+              if [[ "$filename" =~ \.(exe|msi|zip)$ ]] && [[ ! "$filename" =~ \.(blockmap|yml)$ ]]; then
+                echo "   Uploading: $filename"
+                gh release upload "${{ github.ref_name }}" "$file" \
+                  --repo "${{ github.repository }}" \
+                  --clobber
+              else
+                echo "   Skipping technical file: $filename"
+              fi
+            fi
+          done
+        fi
+        
+        # Upload macOS assets (only user-friendly installers)
+        if [ -d "artifacts/macos-latest-packages" ]; then
+          echo "🍎 Uploading macOS assets..."
+          for file in artifacts/macos-latest-packages/*; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              # Only upload main installers, skip technical files
+              if [[ "$filename" =~ \.(dmg|pkg|zip)$ ]] && [[ ! "$filename" =~ \.(blockmap|yml)$ ]]; then
+                echo "   Uploading: $filename"
+                gh release upload "${{ github.ref_name }}" "$file" \
+                  --repo "${{ github.repository }}" \
+                  --clobber
+              else
+                echo "   Skipping technical file: $filename"
+              fi
+            fi
+          done
+        fi
+        
+        # Upload Linux assets (only user-friendly installers)
+        if [ -d "artifacts/ubuntu-latest-packages" ]; then
+          echo "🐧 Uploading Linux assets..."
+          for file in artifacts/ubuntu-latest-packages/*; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              # Only upload main installers, skip technical files
+              if [[ "$filename" =~ \.(AppImage|deb|rpm|zip|tar\.gz)$ ]] && [[ ! "$filename" =~ \.(blockmap|yml)$ ]]; then
+                echo "   Uploading: $filename"
+                gh release upload "${{ github.ref_name }}" "$file" \
+                  --repo "${{ github.repository }}" \
+                  --clobber
+              else
+                echo "   Skipping technical file: $filename"
+              fi
+            fi
+          done
+        fi
+        
+        echo "✅ User-friendly platform assets uploaded! Technical files hidden from public view."
     
     - name: Notify release completion
       run: |
-        echo "🎉 Release ${{ github.ref_name }} completed successfully!"
-        echo "📦 All platform assets uploaded to GitHub release"
+        echo "🎉 Unified Data Studio v2 Release ${{ github.ref_name }} completed successfully!"
+        echo "📦 Individual platform assets uploaded to GitHub release"
+        echo "🎯 Users can now download only what they need"
         echo "🔄 Auto-updates will be available to users"
+        echo "🏷️ Version consistency maintained across all assets"

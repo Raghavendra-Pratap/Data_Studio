@@ -7,12 +7,14 @@ use tracing::{info, error};
 mod data_processor;
 mod workflow_engine;
 mod advanced_formulas;
+mod enhanced_sqlite_service;
 // mod database;  // Commented out for initial build
 mod models;
 
 use data_processor::DataProcessor;
 use workflow_engine::{WorkflowEngine, WorkflowStep};
-use advanced_formulas::{AdvancedFormulaProcessor, AdvancedFormulaRequest, FormulaResult};
+use advanced_formulas::{AdvancedFormulaProcessor, AdvancedFormulaRequest};
+use enhanced_sqlite_service::{EnhancedSQLiteService, EnhancedSQLiteConfig};
 // use database::Database;  // Commented out for initial build
 
 // Global state
@@ -20,6 +22,7 @@ struct AppState {
     data_processor: Arc<DataProcessor>,
     workflow_engine: Arc<WorkflowEngine>,
     advanced_formula_processor: Arc<AdvancedFormulaProcessor>,
+    enhanced_sqlite_service: Arc<EnhancedSQLiteService>,
     // database: Arc<Database>,  // Commented out for initial build
 }
 
@@ -249,6 +252,104 @@ async fn get_supported_formulas(
     Ok(HttpResponse::Ok().json(response))
 }
 
+// Enhanced SQLite CSV import endpoint
+#[post("/sqlite/import-csv")]
+async fn import_csv(
+    state: web::Data<AppState>,
+    req: web::Json<serde_json::Value>,
+) -> Result<impl Responder> {
+    let start_time = std::time::Instant::now();
+    
+    let file_path = match req.get("file_path")
+        .and_then(|v| v.as_str()) {
+        Some(path) => path,
+        None => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "status": "error",
+                "error": "file_path is required"
+            })));
+        }
+    };
+    
+    let table_name = req.get("table_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("imported_data");
+    
+    match state.enhanced_sqlite_service.import_csv(file_path, table_name).await {
+        Ok(result) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
+            info!("CSV import completed in {}ms", processing_time);
+            Ok(HttpResponse::Ok().json(result))
+        }
+        Err(e) => {
+            error!("CSV import failed: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "status": "error",
+                "error": e.to_string()
+            })))
+        }
+    }
+}
+
+// Enhanced SQLite query execution endpoint
+#[post("/sqlite/query")]
+async fn execute_sqlite_query(
+    state: web::Data<AppState>,
+    req: web::Json<serde_json::Value>,
+) -> Result<impl Responder> {
+    let start_time = std::time::Instant::now();
+    
+    let sql = match req.get("sql")
+        .and_then(|v| v.as_str()) {
+        Some(query) => query,
+        None => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "status": "error",
+                "error": "sql query is required"
+            })));
+        }
+    };
+    
+    match state.enhanced_sqlite_service.execute_query(sql).await {
+        Ok(result) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
+            info!("Enhanced SQLite query executed in {}ms", processing_time);
+            Ok(HttpResponse::Ok().json(result))
+        }
+        Err(e) => {
+            error!("Enhanced SQLite query failed: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "status": "error",
+                "error": e.to_string()
+            })))
+        }
+    }
+}
+
+// Enhanced SQLite data transformation endpoint
+#[post("/sqlite/transform")]
+async fn transform_data(
+    state: web::Data<AppState>,
+    req: web::Json<enhanced_sqlite_service::DataOperation>,
+) -> Result<impl Responder> {
+    let start_time = std::time::Instant::now();
+    
+    match state.enhanced_sqlite_service.transform_data(&req.into_inner()).await {
+        Ok(result) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
+            info!("Data transformation completed in {}ms", processing_time);
+            Ok(HttpResponse::Ok().json(result))
+        }
+        Err(e) => {
+            error!("Data transformation failed: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "status": "error",
+                "error": e.to_string()
+            })))
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Initialize logging
@@ -263,12 +364,27 @@ async fn main() -> std::io::Result<()> {
     let data_processor = Arc::new(DataProcessor::new().await);
     let workflow_engine = Arc::new(WorkflowEngine::new().await);
     let advanced_formula_processor = Arc::new(AdvancedFormulaProcessor::new());
+    
+    // Initialize Enhanced SQLite service
+    let enhanced_sqlite_config = EnhancedSQLiteConfig::default();
+    let enhanced_sqlite_service = match EnhancedSQLiteService::new(Some(enhanced_sqlite_config)).await {
+        Ok(service) => {
+            info!("✅ Enhanced SQLite service initialized successfully");
+            Arc::new(service)
+        }
+        Err(e) => {
+            error!("❌ Failed to initialize Enhanced SQLite service: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Enhanced SQLite initialization failed"));
+        }
+    };
+    
     // let database = Arc::new(Database::new().await);  // Commented out for initial build
     
     let app_state = web::Data::new(AppState {
         data_processor,
         workflow_engine,
         advanced_formula_processor,
+        enhanced_sqlite_service,
         // database,  // Commented out for initial build
     });
     
@@ -293,6 +409,9 @@ async fn main() -> std::io::Result<()> {
             .service(test)
             .service(process_advanced_formula)
             .service(get_supported_formulas)
+            .service(import_csv)
+            .service(execute_sqlite_query)
+            .service(transform_data)
     })
     .bind("127.0.0.1:5002")?
     .run()

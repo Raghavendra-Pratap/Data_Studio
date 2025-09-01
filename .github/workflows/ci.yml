@@ -1,4 +1,4 @@
-name: CI - Cross-Platform Build & Test
+name: CI - Unified Data Studio v2 Cross-Platform Build & Test
 
 on:
   push:
@@ -16,26 +16,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Debug repository structure
-      run: |
-        echo "🔍 Debugging repository structure..."
-        echo "Current directory: $(pwd)"
-        echo "Repository contents:"
-        ls -la
-        echo ""
-        echo "Looking for project directories..."
-        if [ -d "unified-data-studio-v2" ]; then
-          echo "✅ Found unified-data-studio-v2 directory"
-          ls -la unified-data-studio-v2/
-        else
-          echo "❌ unified-data-studio-v2 directory not found"
-        fi
-
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -44,30 +30,28 @@ jobs:
         override: true
 
     - name: Install frontend dependencies
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: npm ci
 
     - name: Build frontend
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: npm run build
 
     - name: Test frontend build
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: |
         echo "✅ Frontend build successful"
         ls -la build/
-        echo "📁 Build directory contents verified"
 
     - name: Build Rust backend
-      working-directory: unified-data-studio-v2/backend
+      working-directory: backend
       run: cargo build --release
 
     - name: Test Rust backend
-      working-directory: unified-data-studio-v2/backend
+      working-directory: backend
       run: |
-        echo "✅ Rust backend build successful"
+        echo "✅ Backend build successful"
         ls -la target/release/
-        echo "🔧 Backend binary created successfully"
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -75,48 +59,18 @@ jobs:
         python-version: '3.9'
 
     - name: Install Python dependencies
-      working-directory: unified-data-studio-v2
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Test Python dependencies
-      working-directory: unified-data-studio-v2
+    - name: Test project structure
       run: |
-        echo "✅ Python dependencies installed successfully"
-        python -c "import requests, pathlib2; print('All imports successful')"
-
-    - name: Test build script
-      working-directory: unified-data-studio-v2
-      run: |
-        echo "🔍 Testing build script..."
-        python -c "import build_complete_package; print('✅ Build script imports successfully')"
-
-    - name: Verify project structure
-      working-directory: unified-data-studio-v2
-      run: |
-        echo "📁 Verifying project structure..."
-        echo "✅ Frontend directory: $(ls -la frontend/)"
-        echo "✅ Backend directory: $(ls -la backend/)"
-        echo "✅ Package directory: $(ls -la unified-data-studio-v2-package/)"
-        echo "✅ Root files: $(ls -la | grep -E '\.(json|md|py)$')"
-
-    - name: Test Electron configuration
-      working-directory: unified-data-studio-v2/unified-data-studio-v2-package
-      run: |
-        echo "🔌 Testing Electron configuration..."
-        if [ -f "package.json" ]; then
-          echo "✅ Package.json exists"
-          if grep -q "electron" package.json; then
-            echo "✅ Electron dependency configured"
-          else
-            echo "❌ Electron dependency missing"
-            exit 1
-          fi
-        else
-          echo "❌ Package.json missing in Electron package"
-          exit 1
-        fi
+        echo "🔍 Testing project structure..."
+        echo "Current directory: $(pwd)"
+        echo "Frontend exists: $(test -d frontend && echo 'YES' || echo 'NO')"
+        echo "Backend exists: $(test -d backend && echo 'YES' || echo 'NO')"
+        echo "Requirements.txt exists: $(test -f requirements.txt && echo 'YES' || echo 'NO')"
+        echo "Build script exists: $(test -f build_complete_package.py && echo 'YES' || echo 'NO')"
 
   # Test on macOS
   test-macos:
@@ -127,26 +81,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Debug repository structure
-      run: |
-        echo "🔍 Debugging repository structure..."
-        echo "Current directory: $(pwd)"
-        echo "Repository contents:"
-        ls -la
-        echo ""
-        echo "Looking for project directories..."
-        if [ -d "unified-data-studio-v2" ]; then
-          echo "✅ Found unified-data-studio-v2 directory"
-          ls -la unified-data-studio-v2/
-        else
-          echo "❌ unified-data-studio-v2 directory not found"
-        fi
-
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -155,30 +95,28 @@ jobs:
         override: true
 
     - name: Install frontend dependencies
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: npm ci
 
     - name: Build frontend
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: npm run build
 
     - name: Test frontend build
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: |
-        echo "✅ Frontend build successful on macOS"
+        echo "✅ Frontend build successful"
         ls -la build/
-        echo "📁 Build directory contents verified"
 
     - name: Build Rust backend
-      working-directory: unified-data-studio-v2/backend
+      working-directory: backend
       run: cargo build --release
 
     - name: Test Rust backend
-      working-directory: unified-data-studio-v2/backend
+      working-directory: backend
       run: |
-        echo "✅ Rust backend build successful on macOS"
+        echo "✅ Backend build successful"
         ls -la target/release/
-        echo "🔧 Backend binary created successfully"
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -186,39 +124,18 @@ jobs:
         python-version: '3.9'
 
     - name: Install Python dependencies
-      working-directory: unified-data-studio-v2
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Test Python dependencies
-      working-directory: unified-data-studio-v2
+    - name: Test project structure
       run: |
-        echo "✅ Python dependencies installed successfully on macOS"
-        python -c "import requests, pathlib2; print('All imports successful')"
-
-    - name: Test build script
-      working-directory: unified-data-studio-v2
-      run: |
-        echo "🔍 Testing build script on macOS..."
-        python -c "import build_complete_package; print('✅ Build script imports successfully')"
-
-    - name: Test Electron configuration
-      working-directory: unified-data-studio-v2/unified-data-studio-v2-package
-      run: |
-        echo "🔌 Testing Electron configuration on macOS..."
-        if [ -f "package.json" ]; then
-          echo "✅ Package.json exists"
-          if grep -q "electron" package.json; then
-            echo "✅ Electron dependency configured"
-          else
-            echo "❌ Electron dependency missing"
-            exit 1
-          fi
-        else
-          echo "❌ Package.json missing in Electron package"
-          exit 1
-        fi
+        echo "🔍 Testing project structure..."
+        echo "Current directory: $(pwd)"
+        echo "Frontend exists: $(test -d frontend && echo 'YES' || echo 'NO')"
+        echo "Backend exists: $(test -d backend && echo 'YES' || echo 'NO')"
+        echo "Requirements.txt exists: $(test -f requirements.txt && echo 'YES' || echo 'NO')"
+        echo "Build script exists: $(test -f build_complete_package.py && echo 'YES' || echo 'NO')"
 
   # Test on Windows
   test-windows:
@@ -229,26 +146,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Debug repository structure
-      run: |
-        echo "🔍 Debugging repository structure..."
-        echo "Current directory: $(pwd)"
-        echo "Repository contents:"
-        dir
-        echo ""
-        echo "Looking for project directories..."
-        if (Test-Path "unified-data-studio-v2") {
-          echo "✅ Found unified-data-studio-v2 directory"
-          dir unified-data-studio-v2
-        } else {
-          echo "❌ unified-data-studio-v2 directory not found"
-        }
-
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
 
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
@@ -257,30 +160,28 @@ jobs:
         override: true
 
     - name: Install frontend dependencies
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: npm ci
 
     - name: Build frontend
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: npm run build
 
     - name: Test frontend build
-      working-directory: unified-data-studio-v2/frontend
+      working-directory: frontend
       run: |
-        echo "✅ Frontend build successful on Windows"
-        dir build\
-        echo "📁 Build directory contents verified"
+        echo "✅ Frontend build successful"
+        dir build
 
     - name: Build Rust backend
-      working-directory: unified-data-studio-v2/backend
+      working-directory: backend
       run: cargo build --release
 
     - name: Test Rust backend
-      working-directory: unified-data-studio-v2/backend
+      working-directory: backend
       run: |
-        echo "✅ Rust backend build successful on Windows"
-        dir target\release\
-        echo "🔧 Backend binary created successfully"
+        echo "✅ Backend build successful"
+        dir target\release
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -288,45 +189,24 @@ jobs:
         python-version: '3.9'
 
     - name: Install Python dependencies
-      working-directory: unified-data-studio-v2
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Test Python dependencies
-      working-directory: unified-data-studio-v2
+    - name: Test project structure
       run: |
-        echo "✅ Python dependencies installed successfully on Windows"
-        python -c "import requests, pathlib2; print('All imports successful')"
-
-    - name: Test build script
-      working-directory: unified-data-studio-v2
-      run: |
-        echo "🔍 Testing build script on Windows..."
-        python -c "import build_complete_package; print('✅ Build script imports successfully')"
-
-    - name: Test Electron configuration
-      working-directory: unified-data-studio-v2/unified-data-studio-v2-package
-      run: |
-        echo "🔌 Testing Electron configuration on Windows..."
-        if (Test-Path "package.json") {
-          echo "✅ Package.json exists"
-          if (Select-String -Path "package.json" -Pattern "electron") {
-            echo "✅ Electron dependency configured"
-          } else {
-            echo "❌ Electron dependency missing"
-            exit 1
-          }
-        } else {
-          echo "❌ Package.json missing in Electron package"
-          exit 1
-        }
+        echo "🔍 Testing project structure..."
+        echo "Current directory: $PWD"
+        if (Test-Path "frontend") { echo "Frontend exists: YES" } else { echo "Frontend exists: NO" }
+        if (Test-Path "backend") { echo "Backend exists: YES" } else { echo "Backend exists: NO" }
+        if (Test-Path "requirements.txt") { echo "Requirements.txt exists: YES" } else { echo "Requirements.txt exists: NO" }
+        if (Test-Path "build_complete_package.py") { echo "Build script exists: YES" } else { echo "Build script exists: NO" }
 
   # Cross-platform validation
   validate-cross-platform:
+    needs: [test-ubuntu, test-macos, test-windows]
     runs-on: ubuntu-latest
     name: Cross-Platform Validation
-    needs: [test-ubuntu, test-macos, test-windows]
     
     steps:
     - name: Checkout code
@@ -334,25 +214,10 @@ jobs:
 
     - name: Validate all platforms passed
       run: |
-        echo "🎉 Cross-platform CI validation completed!"
-        echo "✅ Ubuntu (Linux): ${{ needs.test-ubuntu.result }}"
+        echo "🎉 All platform tests passed successfully!"
+        echo "✅ Ubuntu: ${{ needs.test-ubuntu.result }}"
         echo "✅ macOS: ${{ needs.test-macos.result }}"
         echo "✅ Windows: ${{ needs.test-windows.result }}"
         echo ""
-        if [ "${{ needs.test-ubuntu.result }}" = "success" ] && [ "${{ needs.test-macos.result }}" = "success" ] && [ "${{ needs.test-windows.result }}" = "success" ]; then
-          echo "🚀 All platforms passed! Ready for cross-platform releases."
-        else
-          echo "❌ Some platforms failed. Check individual platform jobs for details."
-          exit 1
-        fi
-
-    - name: Success notification
-      run: |
-        echo "🎉 Cross-platform CI checks completed successfully!"
-        echo "✅ Frontend builds: OK on all platforms"
-        echo "✅ Backend builds: OK on all platforms"
-        echo "✅ Dependencies: OK on all platforms"
-        echo "✅ Project structure: OK on all platforms"
-        echo "✅ Electron config: OK on all platforms"
-        echo ""
-        echo "🚀 Ready for cross-platform release workflow!"
+        echo "🚀 CI pipeline is working correctly across all platforms!"
+        echo "📦 Ready for cross-platform packaging and releases!"

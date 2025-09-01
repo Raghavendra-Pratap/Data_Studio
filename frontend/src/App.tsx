@@ -3,6 +3,7 @@ import './App.css';
 import AppLayout from './components/AppLayout';
 import Playground from './components/Playground';
 import ErrorBoundary from './components/ErrorBoundary';
+import { EnhancedDataProcessor } from './components/EnhancedDataProcessor';
 import { databaseManager } from './utils/database';
 import { BackendStatusProvider } from './contexts/BackendContext';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
@@ -29,6 +30,14 @@ const TestDashboard = () => (
           Go to Playground
         </a>
       </div>
+      
+      <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+        <h2 className="text-2xl font-semibold mb-3 text-gray-800">📊 Data Processor</h2>
+        <p className="text-gray-600 mb-4">Advanced data processing with Enhanced SQLite</p>
+        <a href="#/data-processor" className="inline-block bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+          Go to Data Processor
+        </a>
+      </div>
     </div>
     
     <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
@@ -36,9 +45,9 @@ const TestDashboard = () => (
       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
         <div>✅ Advanced Formulas</div>
         <div>✅ Workflow Engine</div>
+        <div>✅ Enhanced SQLite</div>
         <div>✅ Data Processing</div>
         <div>✅ Project Management</div>
-        <div>✅ Real-time Backend</div>
         <div>✅ Cross-platform</div>
       </div>
     </div>
@@ -83,6 +92,7 @@ function App() {
               <Route path="/" element={<TestDashboard />} />
               <Route path="/dashboard" element={<AppLayout />} />
               <Route path="/playground" element={<Playground />} />
+              <Route path="/data-processor" element={<EnhancedDataProcessor />} />
               <Route path="/test" element={<TestDashboard />} />
             </Routes>
           </div>
