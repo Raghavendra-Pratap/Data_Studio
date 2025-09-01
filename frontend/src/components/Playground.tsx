@@ -200,6 +200,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   
   // Enhanced SQLite Workflow State
   const [enhancedSQLiteMode, setEnhancedSQLiteMode] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sqliteTables, setSqliteTables] = useState<string[]>([]);
   const [currentTable, setCurrentTable] = useState<string>('');
   const [sqliteWorkflowSteps, setSqliteWorkflowSteps] = useState<Array<{
@@ -1154,6 +1155,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
 
     try {
       const results: any[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       let currentData: any = null;
 
       for (let i = 0; i < sqliteWorkflowSteps.length; i++) {
@@ -1212,6 +1214,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
           );
 
           if (result.success && result.data) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             currentData = result.data;
             results.push(result);
           } else {
