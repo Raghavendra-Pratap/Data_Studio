@@ -145,6 +145,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   // Live Preview state
   const [sampleSize, setSampleSize] = useState<10 | 50 | 100>(50);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [previewResultMode, setPreviewResultMode] = useState<'step' | 'final'>('step');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   
@@ -735,6 +736,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
 
   const handleFileImport = async (files: FileList) => {
     console.log('Importing files:', files);
+    setIsImporting(true);
     
     try {
       const newFiles: PlaygroundFile[] = [];
@@ -874,7 +876,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       console.log(`Successfully imported ${newFiles.length} files. Total files: ${importedFiles.length + newFiles.length}`);
       
       // Show success message
-      alert(`Successfully imported ${newFiles.length} file(s)!`);
+      console.log(`Successfully imported ${newFiles.length} file(s)!`);
       
       // Clear the file input value to prevent the same file from being selected again
       if (fileInputRef.current) {
@@ -883,18 +885,36 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       
     } catch (error) {
       console.error('Error importing files:', error);
-      alert(`Error importing files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Log error to console instead of showing popup
+      console.error(`Error importing files: ${error instanceof Error ? error.message : 'Unknown error'}`);
       
       // Clear the file input value even on error
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    } finally {
+      setIsImporting(false);
     }
   };
 
   const handleDeleteFile = (fileName: string) => {
-    // Implementation for deleting files
-    console.log('Deleting file:', fileName);
+    setImportedFiles(prev => prev.filter(file => file.name !== fileName));
+    
+    // Remove any selected columns from this file
+    setSelectedColumns(prev => prev.filter(colPath => !colPath.startsWith(fileName)));
+    
+    // Remove any selected files that match this name
+    setSelectedFiles(prev => prev.filter(name => name !== fileName));
+    
+    // Clear any data preview that might be from this file
+    setSelectedColumnsPreview(prev => {
+      if (prev && prev.sourceFile === fileName) {
+        return null;
+      }
+      return prev;
+    });
+    
+    console.log("Successfully deleted file:", fileName);
   };
 
   // Calculate section heights
@@ -1623,6 +1643,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
               height={topSectionHeight}
               showDeleteButton={true}
               showHeaderConfig={true}
+              isImporting={isImporting}
             />
           </div>
 
@@ -2751,7 +2772,15 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : isImporting ? (
+                  <div className="text-center text-gray-500 text-sm flex-1 flex items-center justify-center min-h-0">
+                    <div className="flex flex-col items-center justify-center">
+                      <RefreshCw className="w-8 h-8 mb-2 text-blue-500 animate-spin" />
+                      <p className="text-sm font-medium">Loading files...</p>
+                      <p className="text-xs text-gray-400 mt-1">Please wait while files are being processed</p>
+                  </div>
+                  </div>
+                ) : (
                   <div className="text-center text-gray-500 text-sm flex-1 flex items-center justify-center min-h-0">
                     <div className="flex flex-col items-center justify-center">
                       <Eye className="w-8 h-8 mb-2 text-gray-300" />

@@ -121,10 +121,113 @@ const LivePreview: React.FC<LivePreviewProps> = ({
     }
   }, [workflowSteps, sampleSize, generateWorkflowPreview]);
 
-  // Get current preview result
-  const currentPreview = currentStepIndex >= 0 && currentStepIndex < previewResults.length 
-    ? previewResults[currentStepIndex] 
-    : null;
+  // Generate final result with all output columns from all steps
+  const generateFinalResult = useCallback(() => {
+    if (previewResults.length === 0) return null;
+    
+    // For final results, we need to combine all selected columns from all workflow steps
+    // Get the original data from the first file to use as base
+    const originalData = importedFiles.length > 0 && importedFiles[0].data ? importedFiles[0].data : [];
+    if (originalData.length === 0) return null;
+    
+    // Collect all selected columns from all workflow steps
+    const selectedColumns: string[] = [];
+    const workflowStepsWithColumns = workflowSteps.filter(step => step.type === 'column');
+    
+    console.log('Workflow steps with columns:', workflowStepsWithColumns);
+    
+    workflowStepsWithColumns.forEach(step => {
+      if (step.source && !selectedColumns.includes(step.source)) {
+        selectedColumns.push(step.source);
+      }
+    });
+    
+    console.log('Selected columns from workflow steps:', selectedColumns);
+    
+    // If no columns were selected, return null
+    if (selectedColumns.length === 0) return null;
+    
+    // Debug: Log the original data structure
+    console.log('Final Results Debug:', {
+      selectedColumns,
+      originalDataKeys: originalData.length > 0 ? Object.keys(originalData[0]) : [],
+      firstRow: originalData.length > 0 ? originalData[0] : null,
+      sampleSize
+    });
+    
+    // Create final data by directly accessing the original data with all selected columns
+    const finalData = originalData.slice(0, sampleSize).map((row: any, rowIndex: number) => {
+      const finalRow: any = {};
+      
+      // Add all selected columns from the original data
+      selectedColumns.forEach(column => {
+        // Try exact match first
+        if (column in row) {
+          finalRow[column] = row[column];
+        } else {
+          // Try case-insensitive match
+          const matchingKey = Object.keys(row).find(key => 
+            key.toLowerCase() === column.toLowerCase()
+          );
+          if (matchingKey) {
+            finalRow[column] = row[matchingKey];
+          } else {
+            // Try partial match (in case of slight differences)
+            const partialMatch = Object.keys(row).find(key => 
+              key.toLowerCase().includes(column.toLowerCase()) || 
+              column.toLowerCase().includes(key.toLowerCase())
+            );
+            if (partialMatch) {
+              finalRow[column] = row[partialMatch];
+            } else {
+              finalRow[column] = '';
+            }
+          }
+        }
+      });
+      
+      // Debug first few rows
+      if (rowIndex < 3) {
+        console.log(`Final row ${rowIndex}:`, finalRow);
+      }
+      
+      return finalRow;
+    });
+    
+    // Calculate execution time and memory usage
+    const totalExecutionTime = previewResults.reduce((sum, result) => sum + result.executionTime, 0);
+    const totalMemoryUsage = previewResults.reduce((sum, result) => sum + result.memoryUsage, 0);
+    
+    // Debug: Log the final result
+    console.log('Final result data:', {
+      finalData: finalData.slice(0, 3), // First 3 rows
+      columns: selectedColumns,
+      rowCount: finalData.length
+    });
+    
+    return {
+      data: finalData,
+      columns: selectedColumns,
+      rowCount: finalData.length,
+      executionTime: totalExecutionTime,
+      memoryUsage: totalMemoryUsage,
+      sampleSize: finalData.length,
+      stepIndex: previewResults.length - 1
+    };
+  }, [previewResults, importedFiles, workflowSteps, sampleSize]);
+
+  // Get current preview result based on mode
+  const currentPreview = (() => {
+    if (previewResultMode === 'final') {
+      // For final results, get the processed final result
+      return generateFinalResult();
+    } else {
+      // For step results, get the current step's output
+      return currentStepIndex >= 0 && currentStepIndex < previewResults.length 
+        ? previewResults[currentStepIndex] 
+        : null;
+    }
+  })();
 
 
 
@@ -256,7 +359,10 @@ const LivePreview: React.FC<LivePreviewProps> = ({
                   <div className="bg-yellow-50 p-2 text-xs text-yellow-800 border-b border-yellow-200">
                     <strong>Debug:</strong> Columns: {JSON.stringify(currentPreview.columns)} | 
                     First row: {JSON.stringify(currentPreview.data[0])} | 
-                    Note: This is workflow step preview, not live column preview
+                    Note: {previewResultMode === 'final' 
+                      ? `This is final workflow result combining all ${currentPreview.columns.length} selected columns from ${workflowSteps.filter(s => s.type === 'column').length} workflow steps` 
+                      : 'This is workflow step preview, not live column preview'
+                    }
                   </div>
                   
                   <div className="overflow-x-auto">
@@ -328,8 +434,10 @@ const LivePreview: React.FC<LivePreviewProps> = ({
                   <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
                     <div className="flex items-center justify-between text-xs text-gray-600">
                       <span>
+                        {previewResultMode === 'final' ? 'Final Result: ' : 'Step Result: '}
                         Showing {currentPreview.data.length} of {currentPreview.rowCount} rows 
                         (Sample size: {currentPreview.sampleSize})
+                        {previewResultMode === 'final' && ` • All ${workflowSteps.length} steps completed`}
                       </span>
                       <span>
                         {currentPreview.executionTime.toFixed(2)}ms • {currentPreview.memoryUsage.toFixed(2)}MB

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from './ui/card';
-import { FileText, Upload, File, Trash2 } from 'lucide-react';
+import { FileText, Upload, File, Trash2, RefreshCw } from 'lucide-react';
 
 interface FileData {
   name: string;
@@ -28,6 +28,7 @@ interface DataSourcesProps {
   showDeleteButton?: boolean;
   showHeaderConfig?: boolean;
   className?: string;
+  isImporting?: boolean;
 }
 
 const DataSources: React.FC<DataSourcesProps> = ({
@@ -38,7 +39,8 @@ const DataSources: React.FC<DataSourcesProps> = ({
   height,
   showDeleteButton = false,
   showHeaderConfig = false,
-  className = ""
+  className = "",
+  isImporting = false
 }) => {
   const triggerBrowse = () => {
     // Only call the parent's browse function, don't create our own file input
@@ -62,10 +64,19 @@ const DataSources: React.FC<DataSourcesProps> = ({
           </h3>
           <button
             onClick={triggerBrowse}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Import Files"
+            disabled={isImporting}
+            className={`p-2 rounded-lg transition-colors ${
+              isImporting 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+            title={isImporting ? "Importing files..." : "Import Files"}
           >
-            <Upload className="w-4 h-4" />
+            {isImporting ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4" />
+            )}
           </button>
         </div>
         
@@ -75,7 +86,9 @@ const DataSources: React.FC<DataSourcesProps> = ({
             className="text-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 flex flex-col justify-center flex-1 data-source-drop-area"
             onDragOver={(e) => {
               e.preventDefault();
-              e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+              if (!isImporting) {
+                e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+              }
             }}
             onDragLeave={(e) => {
               e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
@@ -83,22 +96,32 @@ const DataSources: React.FC<DataSourcesProps> = ({
             onDrop={(e) => {
               e.preventDefault();
               e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
-              if (e.dataTransfer.files.length > 0) {
+              if (e.dataTransfer.files.length > 0 && !isImporting) {
                 onDragDropImport(e.dataTransfer.files);
               }
             }}
           >
             <div>
-              <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <h4 className="text-lg font-semibold mb-2">Drop Files Here</h4>
-              <p className="text-sm text-gray-500 mb-4">Support for CSV, Excel files</p>
-              <p className="text-xs text-blue-600 mb-4">💡 Tip: Drag & drop files here or use the upload button above!</p>
-              <button 
-                onClick={triggerBrowse}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Browse Files
-              </button>
+              {isImporting ? (
+                <>
+                  <RefreshCw className="w-12 h-12 mx-auto mb-4 text-blue-500 animate-spin" />
+                  <h4 className="text-lg font-semibold mb-2">Loading Files...</h4>
+                  <p className="text-sm text-gray-500 mb-4">Please wait while files are being processed</p>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <h4 className="text-lg font-semibold mb-2">Drop Files Here</h4>
+                  <p className="text-sm text-gray-500 mb-4">Support for CSV, Excel files</p>
+                  <p className="text-xs text-blue-600 mb-4">💡 Tip: Drag & drop files here or use the upload button above!</p>
+                  <button 
+                    onClick={triggerBrowse}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Browse Files
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ) : (
