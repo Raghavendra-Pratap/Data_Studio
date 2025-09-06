@@ -120,7 +120,7 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
     } catch (_) {
       applyTheme(settings.general.theme);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply theme whenever it changes
   useEffect(() => {
