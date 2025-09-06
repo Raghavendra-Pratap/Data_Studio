@@ -125,7 +125,7 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
   // Apply theme whenever it changes
   useEffect(() => {
     applyTheme(settings.general.theme);
-  }, [settings.general.theme]);
+  }, [settings.general.theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyTheme = (theme: 'light' | 'dark' | 'auto') => {
     const root = document.documentElement;

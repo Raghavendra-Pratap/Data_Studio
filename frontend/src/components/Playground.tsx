@@ -12,7 +12,7 @@ import ExecuteWorkflowDialog, { ExecuteWorkflowTemplate } from './ExecuteWorkflo
 import { formulaService, FormulaDefinition } from '../utils/formulaService';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { backendService, BackendWorkflowRequest } from '../services/BackendService';
-import { formulaConfigService } from '../services/FormulaConfigService';
+// import { formulaConfigService } from '../services/FormulaConfigService';
 import { enhancedSQLiteService, DataOperation } from '../services/EnhancedSQLiteService';
 import ErrorBoundary from './ErrorBoundary';
 import { 
@@ -127,6 +127,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   
   // Enhanced workflow state for interactive building
   const [activeFunction, setActiveFunction] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [functionParameters, setFunctionParameters] = useState<string[]>([]);
   const [isFunctionOpen, setIsFunctionOpen] = useState(false);
   

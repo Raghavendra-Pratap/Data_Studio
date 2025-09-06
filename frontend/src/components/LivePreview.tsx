@@ -225,7 +225,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({
       sampleSize: finalData.length,
       stepIndex: previewResults.length - 1
     };
-  }, [previewResults, workflowSteps, sampleSize]);
+  }, [previewResults, workflowSteps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get current preview result based on mode
   const currentPreview = (() => {

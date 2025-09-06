@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   RotateCcw
 } from 'lucide-react';
-import { formulaConfigService } from '../services/FormulaConfigService';
+// import { formulaConfigService } from '../services/FormulaConfigService';
 
 // Types for formula configuration
 export interface FormulaParameterConfig {
@@ -73,7 +73,7 @@ const FormulaConfiguration: React.FC = () => {
   // Load formulas from backend API
   useEffect(() => {
     loadFormulasFromBackend();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadFormulasFromBackend = async () => {
     try {
