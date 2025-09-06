@@ -4,6 +4,14 @@
 
 The Formula Configuration System is your **control center** for customizing how formulas appear and behave in the Unified Data Studio workflow builder. Think of it as the "settings panel" that transforms raw formula functions into user-friendly, intuitive interfaces.
 
+### **NEW: Backend Code Management**
+The system now includes **full backend code editing capabilities**, allowing you to:
+- **Edit Rust code** for formula implementations directly in the browser
+- **Test compilation** in real-time before saving
+- **Generate code templates** for new formulas
+- **Download/upload** formula code files
+- **Track implementation status** with visual indicators
+
 ### **Why Use Formula Configuration?**
 
 **Before Configuration:**
@@ -93,6 +101,8 @@ When you change a formula configuration:
 - **Edit Formula Section**: Core formula properties
 - **Card Layout Customization**: Visual appearance controls  
 - **Parameters Section**: Input field configuration
+- **Backend Code Editor**: Real-time Rust code editing (NEW)
+- **Code Management**: Save, test, generate, download/upload (NEW)
 
 ### **Step 3: Editing Existing Formulas**
 
@@ -244,6 +254,115 @@ When you change a formula configuration:
 - **Impact:** Guides user input
 - **Best Practice:** Show realistic examples
 
+## Complete Workflow: From Configuration to Implementation
+
+### **Step-by-Step: Configuring and Implementing a Formula**
+
+#### **Phase 1: Basic Configuration**
+1. **Select Formula**: Choose from the 20 available formulas
+2. **Configure Appearance**: Set custom heading, color, layout
+3. **Define Parameters**: Configure input fields and validation
+4. **Save Configuration**: Apply changes to formula appearance
+
+#### **Phase 2: Backend Implementation (NEW)**
+1. **Open Code Editor**: Click "Show Code Editor" button
+2. **Generate Template**: Click "Generate Template" for starter code
+3. **Edit Implementation**: Modify the generated Rust code
+4. **Test Compilation**: Click "Test Code" to validate syntax
+5. **Save Code**: Click "Save Code" to make it available
+6. **Verify Status**: Check implementation status indicator
+
+#### **Phase 3: Testing and Validation**
+1. **Test in Playground**: Use the formula in the workflow builder
+2. **Verify Results**: Check that output matches expectations
+3. **Debug Issues**: Use error messages to fix problems
+4. **Iterate**: Make changes and test again
+
+### **Example: Complete TEXT_JOIN Implementation**
+
+#### **Step 1: Configuration**
+```
+Formula Name: TEXT_JOIN
+Custom Heading: "Join Text Values"
+Card Color: Green
+Parameter Layout: Horizontal
+
+Parameters:
+- delimiter (Text Input, Small, Required)
+- ignore_empty (Checkbox, Required)  
+- text_columns (Multi Select, Large, Required)
+```
+
+#### **Step 2: Code Implementation**
+```rust
+use anyhow::{Result, anyhow};
+use serde_json::Value;
+use std::collections::HashMap;
+
+pub struct TextJoinExecutor;
+
+impl FormulaExecutor for TextJoinExecutor {
+    fn execute(&self, data: &[HashMap<String, Value>], parameters: &HashMap<String, Value>) -> Result<Vec<HashMap<String, Value>>> {
+        let delimiter = parameters.get("delimiter")
+            .and_then(|v| v.as_str())
+            .unwrap_or(",");
+        
+        let ignore_empty = parameters.get("ignore_empty")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        
+        let text_columns = parameters.get("text_columns")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| anyhow!("Missing text_columns parameter"))?;
+        
+        let result: Vec<HashMap<String, Value>> = data.iter().map(|row| {
+            let mut new_row = row.clone();
+            let mut values = Vec::new();
+            
+            for col in text_columns {
+                if let Some(col_name) = col.as_str() {
+                    if let Some(value) = row.get(col_name) {
+                        let text_value = value.as_str()
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| value.to_string());
+                        
+                        if !ignore_empty || !text_value.is_empty() {
+                            values.push(text_value);
+                        }
+                    }
+                }
+            }
+            
+            let joined_text = values.join(delimiter);
+            new_row.insert("text_join_result".to_string(), Value::String(joined_text));
+            new_row
+        }).collect();
+        
+        Ok(result)
+    }
+
+    fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<()> {
+        if !parameters.contains_key("delimiter") {
+            return Err(anyhow!("Missing required parameter: delimiter"));
+        }
+        if !parameters.contains_key("text_columns") {
+            return Err(anyhow!("Missing required parameter: text_columns"));
+        }
+        Ok(())
+    }
+
+    fn get_output_columns(&self, _parameters: &HashMap<String, Value>) -> Vec<String> {
+        vec!["text_join_result".to_string()]
+    }
+}
+```
+
+#### **Step 3: Testing**
+1. **Test Code**: Click "Test Code" → ✅ Compilation successful
+2. **Save Code**: Click "Save Code" → ✅ Code saved
+3. **Status Update**: 🟢 Implemented
+4. **Playground Test**: Use in workflow → ✅ Works correctly
+
 ## Real-World Configuration Examples
 
 ### **Example 1: TEXT_JOIN Formula**
@@ -299,6 +418,105 @@ Parameters:
 
 **Result:** Users see "Add Numbers" with two dropdown selectors for numeric columns.
 
+## Backend Code Management (NEW)
+
+### **Real-Time Code Editor**
+
+The Formula Configuration system now includes a **full-featured Rust code editor** with:
+
+#### **Code Editor Features**
+- **Syntax Highlighting**: Rust syntax highlighting for better readability
+- **Real-time Validation**: Instant feedback on code syntax
+- **Auto-save**: Automatic saving of changes
+- **Line Numbers**: Easy navigation and debugging
+- **Error Highlighting**: Visual indicators for compilation errors
+
+#### **Code Management Actions**
+
+##### **Save Code**
+- **What**: Saves the current code to the backend
+- **When**: Click "Save Code" button or use Ctrl+S
+- **Impact**: Makes code available for formula execution
+- **Validation**: Code is validated before saving
+
+##### **Test Code**
+- **What**: Compiles and tests the code without saving
+- **When**: Click "Test Code" button
+- **Result**: Shows compilation success/failure with detailed error messages
+- **Benefit**: Validate code before committing changes
+
+##### **Generate Template**
+- **What**: Creates a boilerplate code template for the formula
+- **When**: Click "Generate Template" button
+- **Result**: Auto-generated Rust code with proper structure
+- **Benefit**: Quick start for new formula implementations
+
+##### **Reset Code**
+- **What**: Reverts to the last saved version
+- **When**: Click "Reset Code" button
+- **Impact**: Discards unsaved changes
+- **Use Case**: Undo experimental changes
+
+##### **Download Code**
+- **What**: Downloads the current code as a .rs file
+- **When**: Click "Download Code" button
+- **Format**: Rust source file (.rs)
+- **Use Case**: Backup, version control, external editing
+
+##### **Upload Code**
+- **What**: Uploads a .rs file to replace current code
+- **When**: Click "Upload Code" button
+- **Format**: Accepts .rs files
+- **Use Case**: Import code from external sources
+
+### **Implementation Status Tracking**
+
+#### **Status Indicators**
+- 🟢 **Implemented**: Formula has working backend code
+- 🟡 **Needs Update**: Formula exists but may need updates
+- 🔴 **Error**: Formula has compilation or runtime errors
+- ⚪ **Not Implemented**: Formula needs backend implementation
+
+#### **Status Information**
+- **Last Compiled**: Timestamp of last successful compilation
+- **Backend Status**: Current implementation state
+- **Error Messages**: Detailed error information if compilation fails
+
+### **Code Template System**
+
+#### **Auto-Generated Templates**
+Each formula gets a **customized template** including:
+
+```rust
+use anyhow::{Result, anyhow};
+use serde_json::Value;
+use std::collections::HashMap;
+
+pub struct FormulaNameExecutor;
+
+impl FormulaExecutor for FormulaNameExecutor {
+    fn execute(&self, data: &[HashMap<String, Value>], parameters: &HashMap<String, Value>) -> Result<Vec<HashMap<String, Value>>> {
+        // Your implementation here
+        Ok(data.to_vec())
+    }
+
+    fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<()> {
+        // Parameter validation
+        Ok(())
+    }
+
+    fn get_output_columns(&self, _parameters: &HashMap<String, Value>) -> Vec<String> {
+        vec!["formula_result".to_string()]
+    }
+}
+```
+
+#### **Template Customization**
+- **Formula-specific**: Each template is tailored to the formula's parameters
+- **Best practices**: Includes proper error handling and validation
+- **Ready to use**: Generated code compiles without modification
+- **Extensible**: Easy to modify for specific requirements
+
 ## Backend Integration Details
 
 ### **How Configuration Changes Flow to Backend**
@@ -309,12 +527,28 @@ Parameters:
 4. **Frontend Refresh** → Fetches updated configuration
 5. **Playground Update** → Formula cards reflect new settings
 
+### **How Code Changes Flow to Backend**
+
+1. **User Edits Code** → Code editor updates in real-time
+2. **Test Code Clicked** → Backend compiles code and returns results
+3. **Save Code Clicked** → Backend stores code and updates status
+4. **Formula Execution** → Backend uses saved code for formula processing
+5. **Status Update** → Frontend reflects new implementation status
+
 ### **API Endpoints Used**
 
+#### **Configuration Management**
 - **GET /api/formulas/config** - Fetch all formulas
 - **PUT /api/formulas/config/{id}** - Update specific formula
 - **POST /api/formulas/config** - Create new formula
 - **DELETE /api/formulas/config/{id}** - Remove formula
+
+#### **Code Management (NEW)**
+- **POST /api/formulas/{name}/code** - Save formula code
+- **GET /api/formulas/{name}/code** - Get formula code
+- **POST /api/formulas/{name}/test** - Test code compilation
+- **GET /api/formulas/{name}/generate** - Generate code template
+- **GET /api/formulas/code** - List all formula codes
 
 ### **Data Structure Flow**
 
@@ -340,6 +574,33 @@ FormulaConfig → HTTP Response → State Update → Rendered Cards
 - **Check:** "Show in Card" is enabled
 - **Verify:** Parameter has valid display order
 - **Solution:** Ensure parameter is properly configured
+
+### **Code Compilation Errors (NEW)**
+- **Check:** Rust syntax is correct
+- **Verify:** All required imports are present
+- **Solution:** Use "Test Code" button for detailed error messages
+- **Common Issues:**
+  - Missing `use` statements
+  - Incorrect trait implementations
+  - Type mismatches in parameter handling
+
+### **Code Not Saving (NEW)**
+- **Check:** Code compiles successfully
+- **Verify:** Backend is running and accessible
+- **Solution:** Test compilation first, then save
+- **Error Messages:** Check browser console for API errors
+
+### **Template Generation Failing (NEW)**
+- **Check:** Formula name is valid
+- **Verify:** Backend template generator is working
+- **Solution:** Refresh page and try again
+- **Fallback:** Use existing code as starting point
+
+### **Status Not Updating (NEW)**
+- **Check:** Code was saved successfully
+- **Verify:** Backend status API is responding
+- **Solution:** Refresh the formula list
+- **Note:** Status updates may take a few seconds
 
 ## Best Practices Summary
 
@@ -549,6 +810,15 @@ const saveFormula = async (formula: FormulaConfig) => {
 - [ ] **Help Text**: Clear descriptions and tips
 - [ ] **Placeholders**: Realistic examples
 
+### **Backend Implementation Checklist (NEW)**
+- [ ] **Code Editor**: Open and ready for editing
+- [ ] **Generate Template**: Create starter code
+- [ ] **Edit Implementation**: Customize the generated code
+- [ ] **Test Compilation**: Validate syntax before saving
+- [ ] **Save Code**: Make implementation available
+- [ ] **Verify Status**: Check implementation indicator
+- [ ] **Test in Playground**: Validate functionality
+
 ### **Color Theme Guide**
 - 🔵 **Blue**: General purpose, default
 - 🟢 **Green**: Text and string operations
@@ -563,10 +833,27 @@ const saveFormula = async (formula: FormulaConfig) => {
 - **Single Select**: One choice from options
 - **Multi Select**: Multiple choices from options
 
+### **Code Management Actions (NEW)**
+- **Save Code**: Save current code to backend
+- **Test Code**: Compile and validate without saving
+- **Generate Template**: Create boilerplate code
+- **Reset Code**: Revert to last saved version
+- **Download Code**: Export as .rs file
+- **Upload Code**: Import from .rs file
+
+### **Status Indicators (NEW)**
+- 🟢 **Implemented**: Working backend code
+- 🟡 **Needs Update**: Code exists but may need updates
+- 🔴 **Error**: Compilation or runtime errors
+- ⚪ **Not Implemented**: No backend code
+
 ---
 
 *Last Updated: September 2024*  
-*Version: 2.0.0*  
+*Version: 2.1.0*  
 *Total Formulas: 20*  
 *Categories: 6*  
-*Customization Options: 15+*
+*Customization Options: 15+*  
+*Backend Code Management: ✅ NEW*  
+*Real-time Compilation: ✅ NEW*  
+*Template Generation: ✅ NEW*
