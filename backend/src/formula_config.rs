@@ -41,6 +41,9 @@ pub struct FormulaConfig {
     pub is_active: bool,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
+    // New toggle switches
+    pub is_enabled: Option<bool>, // Enable/disable formula entirely
+    pub show_in_engine: Option<bool>, // Show/hide in formula engine page
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -113,6 +116,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // IF formula
@@ -173,6 +178,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // ADD formula
@@ -211,6 +218,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // UPPER formula
@@ -238,6 +247,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // SUM formula
@@ -265,6 +276,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // COUNT formula
@@ -292,6 +305,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // LOWER formula
@@ -319,6 +334,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // TRIM formula
@@ -346,6 +363,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // TEXT_LENGTH formula
@@ -373,6 +392,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // PROPER_CASE formula
@@ -400,6 +421,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // SUBTRACT formula
@@ -438,6 +461,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // MULTIPLY formula
@@ -476,6 +501,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // DIVIDE formula
@@ -514,6 +541,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // UNIQUE_COUNT formula
@@ -541,6 +570,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // SUMIF formula
@@ -590,6 +621,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // COUNTIF formula
@@ -628,6 +661,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // PIVOT formula
@@ -666,6 +701,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // DEPIVOT formula
@@ -693,6 +730,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // REMOVE_DUPLICATES formula
@@ -720,6 +759,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // FILLNA formula
@@ -758,6 +799,8 @@ pub fn initialize_default_formulas() {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
 
     // Insert all formulas

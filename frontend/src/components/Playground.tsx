@@ -270,7 +270,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
 
   // Initialize formulas from service
   useEffect(() => {
-    const formulas = formulaService.getAllFormulas();
+    const formulas = formulaService.getFormulasForEngine(); // Only show formulas enabled for engine
     setAllFormulas(formulas);
     
     // Initialize expanded categories
@@ -489,7 +489,9 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     
     // Apply search filter
     if (formulaSearchTerm) {
-      filtered = formulaService.searchFormulas(formulaSearchTerm);
+      filtered = formulaService.searchFormulas(formulaSearchTerm).filter(formula => 
+        formula.isEnabled !== false && formula.showInEngine !== false
+      );
     }
     
     // Apply sorting

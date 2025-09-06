@@ -11,10 +11,14 @@
             "id": "2fcb74ea93d5fb7b",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "frontend/node_modules/@alloc/quick-lru/readme.md",
+                "mode": "preview",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "readme"
             }
           }
         ]
@@ -74,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 379.5
   },
   "right": {
     "id": "4cd60a9c493fcbc7",
@@ -163,5 +167,9 @@
     }
   },
   "active": "2fcb74ea93d5fb7b",
-  "lastOpenFiles": []
+  "lastOpenFiles": [
+    "API_REFERENCE.md",
+    "COMPREHENSIVE_FORMULA_REFERENCE.md",
+    "FORMULA_CONFIGURATION_DOCUMENTATION.md"
+  ]
 }

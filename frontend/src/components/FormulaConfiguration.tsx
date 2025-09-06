@@ -68,6 +68,9 @@ export interface FormulaConfig {
   backendCode?: string;
   backendStatus?: 'not_implemented' | 'implemented' | 'needs_update' | 'error';
   lastCompiled?: string;
+  // New toggle switches
+  isEnabled?: boolean; // Enable/disable formula entirely
+  showInEngine?: boolean; // Show/hide in formula engine page
 }
 
 const FormulaConfiguration: React.FC = () => {
@@ -122,7 +125,9 @@ const FormulaConfiguration: React.FC = () => {
             showStatus: true,
             cardColor: 'blue',
             parameterLayout: 'vertical'
-          }
+          },
+          isEnabled: formula.isEnabled !== false,
+          showInEngine: formula.showInEngine !== false
         }));
         setFormulas(backendFormulas);
         console.log('Loaded formulas from backend:', backendFormulas.length);
@@ -771,6 +776,60 @@ const FormulaConfiguration: React.FC = () => {
                       placeholder="Helpful tip for users"
                       rows={2}
                     />
+                  </div>
+
+                  {/* Toggle Switches */}
+                  <div className="border-t pt-4">
+                    <h3 className="text-lg font-medium mb-4">Formula Controls</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <Label htmlFor="formula-enabled" className="text-base font-medium">
+                            Enable Formula
+                          </Label>
+                          <p className="text-sm text-gray-600 mt-1">
+                            When disabled, this formula won't appear anywhere in the UI
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            id="formula-enabled"
+                            checked={selectedFormula.isEnabled !== false}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                              setSelectedFormula({ ...selectedFormula, isEnabled: e.target.checked })
+                            }
+                            disabled={!isEditing}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <Label htmlFor="formula-show-in-engine" className="text-base font-medium">
+                            Show in Formula Engine
+                          </Label>
+                          <p className="text-sm text-gray-600 mt-1">
+                            When disabled, formula is enabled but hidden from the formula engine page
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            id="formula-show-in-engine"
+                            checked={selectedFormula.showInEngine !== false}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                              setSelectedFormula({ ...selectedFormula, showInEngine: e.target.checked })
+                            }
+                            disabled={!isEditing}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
                   <div>

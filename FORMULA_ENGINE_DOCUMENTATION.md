@@ -10,7 +10,7 @@ The Unified Data Studio Formula Engine is a comprehensive, modular system that p
 ┌─────────────────────────────────────────────────────────────┐
 │                    Formula Engine Architecture              │
 ├─────────────────────────────────────────────────────────────┤
-│  Frontend (React)           │  Backend (Rust)              │
+│  Frontend (React)            │  Backend (Rust)              │
 │  ┌─────────────────────────┐ │  ┌─────────────────────────┐ │
 │  │ Formula Configuration   │ │  │ Dynamic Formula Engine  │ │
 │  │ - Visual Status         │ │  │ - Formula Registration  │ │

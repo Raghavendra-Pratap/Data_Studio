@@ -378,6 +378,8 @@ pub fn initialize_dynamic_formula_engine() -> DynamicFormulaEngine {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
     
     let lower_config = FormulaConfig {
@@ -402,6 +404,8 @@ pub fn initialize_dynamic_formula_engine() -> DynamicFormulaEngine {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
     
     let add_config = FormulaConfig {
@@ -439,6 +443,8 @@ pub fn initialize_dynamic_formula_engine() -> DynamicFormulaEngine {
         is_active: true,
         created_at: Some(get_current_timestamp()),
         updated_at: Some(get_current_timestamp()),
+        is_enabled: Some(true),
+        show_in_engine: Some(true),
     };
     
     // Register the formulas

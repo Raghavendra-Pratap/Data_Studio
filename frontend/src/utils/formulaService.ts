@@ -9,6 +9,8 @@ export interface FormulaDefinition {
   parameters: FormulaParameter[];
   examples: string[];
   aliases?: string[];
+  isEnabled?: boolean; // Enable/disable formula entirely
+  showInEngine?: boolean; // Show/hide in formula engine page
 }
 
 export interface FormulaParameter {
@@ -50,7 +52,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'ignore_empty', type: 'boolean', description: 'TRUE/FALSE (skip blanks or not)', required: true },
       { name: 'text_values', type: 'column', description: 'Values to join', required: true }
     ],
-    examples: ['TEXT_JOIN [", " -> TRUE -> City -> State -> Country]']
+    examples: ['TEXT_JOIN [", " -> TRUE -> City -> State -> Country]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'UPPER',
@@ -60,7 +64,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The text column to convert', required: true }
     ],
-    examples: ['UPPER [Name]', 'UPPER [Email]']
+    examples: ['UPPER [Name]', 'UPPER [Email]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'LOWER',
@@ -70,7 +76,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The text column to convert', required: true }
     ],
-    examples: ['LOWER [Name]', 'LOWER [Email]']
+    examples: ['LOWER [Name]', 'LOWER [Email]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'TRIM',
@@ -80,7 +88,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The text column to clean', required: true }
     ],
-    examples: ['TRIM [Comments]', 'TRIM [Address]']
+    examples: ['TRIM [Comments]', 'TRIM [Address]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'TEXT_LENGTH',
@@ -90,7 +100,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The text column to measure', required: true }
     ],
-    examples: ['TEXT_LENGTH [Name]', 'TEXT_LENGTH [Email]']
+    examples: ['TEXT_LENGTH [Name]', 'TEXT_LENGTH [Email]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'PROPER_CASE',
@@ -100,7 +112,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The text column to convert', required: true }
     ],
-    examples: ['PROPER_CASE [Name]', 'PROPER_CASE [Title]']
+    examples: ['PROPER_CASE [Name]', 'PROPER_CASE [Title]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'ADD',
@@ -111,7 +125,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'column1', type: 'column', description: 'First number column', required: true },
       { name: 'column2', type: 'column', description: 'Second number column', required: true }
     ],
-    examples: ['ADD [Price -> Tax]', 'ADD [Quantity -> Bonus]']
+    examples: ['ADD [Price -> Tax]', 'ADD [Quantity -> Bonus]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'SUBTRACT',
@@ -122,7 +138,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'column1', type: 'column', description: 'First number column', required: true },
       { name: 'column2', type: 'column', description: 'Second number column', required: true }
     ],
-    examples: ['SUBTRACT [Total -> Discount]', 'SUBTRACT [Revenue -> Cost]']
+    examples: ['SUBTRACT [Total -> Discount]', 'SUBTRACT [Revenue -> Cost]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'MULTIPLY',
@@ -133,7 +151,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'column1', type: 'column', description: 'First number column', required: true },
       { name: 'column2', type: 'column', description: 'Second number column', required: true }
     ],
-    examples: ['MULTIPLY [Price -> Quantity]', 'MULTIPLY [Rate -> Hours]']
+    examples: ['MULTIPLY [Price -> Quantity]', 'MULTIPLY [Rate -> Hours]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'DIVIDE',
@@ -144,7 +164,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'column1', type: 'column', description: 'First number column', required: true },
       { name: 'column2', type: 'column', description: 'Second number column', required: true }
     ],
-    examples: ['DIVIDE [Total -> Quantity]', 'DIVIDE [Revenue -> Units]']
+    examples: ['DIVIDE [Total -> Quantity]', 'DIVIDE [Revenue -> Units]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'SUM',
@@ -154,7 +176,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'columns', type: 'column', description: 'Columns to sum', required: true }
     ],
-    examples: ['SUM [Q1 -> Q2 -> Q3 -> Q4]', 'SUM [Sales -> Bonus -> Commission]']
+    examples: ['SUM [Q1 -> Q2 -> Q3 -> Q4]', 'SUM [Sales -> Bonus -> Commission]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'COUNT',
@@ -164,7 +188,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The column to count', required: true }
     ],
-    examples: ['COUNT [ID]', 'COUNT [Sales]']
+    examples: ['COUNT [ID]', 'COUNT [Sales]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'UNIQUE_COUNT',
@@ -174,7 +200,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'column', type: 'column', description: 'The column to count unique values', required: true }
     ],
-    examples: ['UNIQUE_COUNT [Customer_ID]', 'UNIQUE_COUNT [Category]']
+    examples: ['UNIQUE_COUNT [Customer_ID]', 'UNIQUE_COUNT [Category]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'IF',
@@ -187,7 +215,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'true_value', type: 'value', description: 'Value if condition is true', required: true },
       { name: 'false_value', type: 'value', description: 'Value if condition is false', required: true }
     ],
-    examples: ['IF [Status -> "Active" -> "Valid" -> "Invalid"]', 'IF [Amount -> 1000 -> "High" -> "Low"]']
+    examples: ['IF [Status -> "Active" -> "Valid" -> "Invalid"]', 'IF [Amount -> 1000 -> "High" -> "Low"]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'SUMIF',
@@ -199,7 +229,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'condition_value', type: 'value', description: 'Value to compare against', required: true },
       { name: 'target_column', type: 'column', description: 'Column to sum when condition is met', required: true }
     ],
-    examples: ['SUMIF [Status -> "Active" -> Amount]', 'SUMIF [Category -> "Electronics" -> Sales]']
+    examples: ['SUMIF [Status -> "Active" -> Amount]', 'SUMIF [Category -> "Electronics" -> Sales]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'COUNTIF',
@@ -210,7 +242,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'condition_column', type: 'column', description: 'Column to check condition', required: true },
       { name: 'condition_value', type: 'value', description: 'Value to compare against', required: true }
     ],
-    examples: ['COUNTIF [Status -> "Active"]', 'COUNTIF [Amount -> ">1000"]']
+    examples: ['COUNTIF [Status -> "Active"]', 'COUNTIF [Amount -> ">1000"]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'PIVOT',
@@ -221,7 +255,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'index_column', type: 'column', description: 'Column to use as index', required: true },
       { name: 'value_column', type: 'column', description: 'Column to use as values', required: true }
     ],
-    examples: ['PIVOT [Category -> Sales]', 'PIVOT [Month -> Revenue]']
+    examples: ['PIVOT [Category -> Sales]', 'PIVOT [Month -> Revenue]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'DEPIVOT',
@@ -231,7 +267,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'id_columns', type: 'column', description: 'Columns to keep as identifiers', required: true }
     ],
-    examples: ['DEPIVOT [ID -> Name]', 'DEPIVOT [Customer_ID -> Product_ID]']
+    examples: ['DEPIVOT [ID -> Name]', 'DEPIVOT [Customer_ID -> Product_ID]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'REMOVE_DUPLICATES',
@@ -241,7 +279,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
     parameters: [
       { name: 'columns', type: 'column', description: 'Columns to check for duplicates', required: true }
     ],
-    examples: ['REMOVE_DUPLICATES [Email]', 'REMOVE_DUPLICATES [Customer_ID -> Order_ID]']
+    examples: ['REMOVE_DUPLICATES [Email]', 'REMOVE_DUPLICATES [Customer_ID -> Order_ID]'],
+    isEnabled: true,
+    showInEngine: true
   },
   {
     name: 'FILLNA',
@@ -252,7 +292,9 @@ export const CORE_FORMULAS: FormulaDefinition[] = [
       { name: 'column', type: 'column', description: 'Column to fill null values', required: true },
       { name: 'value', type: 'value', description: 'Value to use for null values', required: true }
     ],
-    examples: ['FILLNA [Phone -> "N/A"]', 'FILLNA [Amount -> 0]']
+    examples: ['FILLNA [Phone -> "N/A"]', 'FILLNA [Amount -> 0]'],
+    isEnabled: true,
+    showInEngine: true
   }
 ];
 
@@ -279,6 +321,18 @@ class FormulaService {
   // Get all available formulas
   getAllFormulas(): FormulaDefinition[] {
     return Array.from(this.formulas.values());
+  }
+
+  // Get enabled formulas only
+  getEnabledFormulas(): FormulaDefinition[] {
+    return Array.from(this.formulas.values()).filter(formula => formula.isEnabled !== false);
+  }
+
+  // Get formulas that should show in the formula engine
+  getFormulasForEngine(): FormulaDefinition[] {
+    return Array.from(this.formulas.values()).filter(formula => 
+      formula.isEnabled !== false && formula.showInEngine !== false
+    );
   }
 
   // Get formula by name
