@@ -9,11 +9,16 @@ import {
   Save, 
   Edit, 
   Trash2, 
-  Settings,
-  Code,
+  Settings, 
+  Code, 
   ArrowLeft,
-  RotateCcw
+  RotateCcw,
+  // Play,
+  CheckCircle,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
+import FormulaCodeEditor from './FormulaCodeEditor';
 // import { formulaConfigService } from '../services/FormulaConfigService';
 
 // Types for formula configuration
@@ -59,6 +64,10 @@ export interface FormulaConfig {
     cardColor?: 'blue' | 'green' | 'purple' | 'orange' | 'red'; // Card color theme
     parameterLayout?: 'vertical' | 'horizontal' | 'grid'; // How parameters are arranged
   };
+  // Backend implementation
+  backendCode?: string;
+  backendStatus?: 'not_implemented' | 'implemented' | 'needs_update' | 'error';
+  lastCompiled?: string;
 }
 
 const FormulaConfiguration: React.FC = () => {
@@ -69,6 +78,7 @@ const FormulaConfiguration: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showBackendEditor, setShowBackendEditor] = useState(false);
 
   // Load formulas from backend API
   useEffect(() => {
@@ -331,6 +341,115 @@ const FormulaConfiguration: React.FC = () => {
   const handleResetFormula = () => {
     if (originalFormula) {
       setSelectedFormula(JSON.parse(JSON.stringify(originalFormula))); // Deep copy
+    }
+  };
+
+  // Backend code handling
+  const handleSaveBackendCode = async (code: string) => {
+    if (!selectedFormula) return;
+    
+    try {
+      const response = await fetch(`http://localhost:5002/api/formulas/${selectedFormula.name}/code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+      
+      if (response.ok) {
+        const updatedFormula = { ...selectedFormula, backendCode: code };
+        setSelectedFormula(updatedFormula);
+        
+        // Update the formula in the list
+        setFormulas(prev => prev.map(f => f.id === selectedFormula.id ? updatedFormula : f));
+        
+        console.log('Backend code saved successfully');
+      } else {
+        console.error('Failed to save backend code');
+      }
+    } catch (error) {
+      console.error('Error saving backend code:', error);
+    }
+  };
+
+  const handleTestBackendCode = async (code: string): Promise<{ success: boolean; message: string }> => {
+    if (!selectedFormula) {
+      return { success: false, message: 'No formula selected' };
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:5002/api/formulas/${selectedFormula.name}/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        return { success: true, message: result.message || 'Code compiled successfully' };
+      } else {
+        return { success: false, message: result.message || 'Code compilation failed' };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: `Test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
+  };
+
+  const handleResetBackendCode = () => {
+    if (selectedFormula) {
+      setSelectedFormula({ ...selectedFormula, backendCode: '' });
+    }
+  };
+
+  const handleGenerateTemplate = async (): Promise<string> => {
+    if (!selectedFormula) {
+      throw new Error('No formula selected');
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:5002/api/formulas/${selectedFormula.name}/generate`);
+      const result = await response.json();
+      
+      if (result.success) {
+        return result.code;
+      } else {
+        throw new Error(result.message || 'Failed to generate template');
+      }
+    } catch (error) {
+      throw new Error(`Failed to generate template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const getBackendStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'implemented':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'needs_update':
+        return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
+      case 'error':
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      default:
+        return <XCircle className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getBackendStatusText = (status?: string) => {
+    switch (status) {
+      case 'implemented':
+        return 'Implemented';
+      case 'needs_update':
+        return 'Needs Update';
+      case 'error':
+        return 'Error';
+      default:
+        return 'Not Implemented';
     }
   };
 
@@ -807,6 +926,78 @@ const FormulaConfiguration: React.FC = () => {
                     </div>
                   ) : (
                     selectedFormula.parameters.map(renderParameterEditor)
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Backend Implementation Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center space-x-2">
+                      <Code className="w-5 h-5" />
+                      <span>Backend Implementation</span>
+                    </CardTitle>
+                    <div className="flex items-center space-x-2">
+                      {getBackendStatusIcon(selectedFormula.backendStatus)}
+                      <span className="text-sm text-gray-600">
+                        {getBackendStatusText(selectedFormula.backendStatus)}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowBackendEditor(!showBackendEditor)}
+                      >
+                        <Code className="w-4 h-4 mr-2" />
+                        {showBackendEditor ? 'Hide' : 'Show'} Code Editor
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {showBackendEditor ? (
+                    <FormulaCodeEditor
+                      formulaName={selectedFormula.name}
+                      initialCode={selectedFormula.backendCode || ''}
+                      onSave={handleSaveBackendCode}
+                      onTest={handleTestBackendCode}
+                      onReset={handleResetBackendCode}
+                      onGenerateTemplate={handleGenerateTemplate}
+                      isReadOnly={!isEditing}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">Backend Status</h4>
+                        <div className="flex items-center space-x-2">
+                          {getBackendStatusIcon(selectedFormula.backendStatus)}
+                          <span className="text-sm">
+                            {getBackendStatusText(selectedFormula.backendStatus)}
+                          </span>
+                        </div>
+                        {selectedFormula.lastCompiled && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Last compiled: {new Date(selectedFormula.lastCompiled).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">Implementation Required</h4>
+                        <p className="text-sm text-blue-800 mb-3">
+                          This formula needs a backend implementation to work in the playground. 
+                          Click "Show Code Editor" to implement the Rust executor.
+                        </p>
+                        <div className="text-xs text-blue-700">
+                          <p><strong>What you need to implement:</strong></p>
+                          <ul className="list-disc list-inside mt-1 space-y-1">
+                            <li>execute() - Process data and return results</li>
+                            <li>validate_parameters() - Check required parameters</li>
+                            <li>get_output_columns() - Define output column names</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>

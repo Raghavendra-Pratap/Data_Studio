@@ -10,6 +10,8 @@ mod advanced_formulas;
 mod enhanced_sqlite_service;
 mod formula_config;
 mod dynamic_formula_engine;
+mod formula_code_manager;
+mod formula_executor_generator;
 // mod database;  // Commented out for initial build
 mod models;
 
@@ -19,6 +21,8 @@ use advanced_formulas::{AdvancedFormulaProcessor, AdvancedFormulaRequest};
 use enhanced_sqlite_service::{EnhancedSQLiteService, EnhancedSQLiteConfig};
 use formula_config::{configure_routes as configure_formula_routes, initialize_default_formulas};
 use dynamic_formula_engine::{DynamicFormulaEngine, FormulaExecutionRequest, initialize_dynamic_formula_engine};
+use formula_code_manager::{FormulaCodeManager, CodeSaveRequest, CodeTestRequest};
+use formula_executor_generator::FormulaExecutorGenerator;
 // use database::Database;  // Commented out for initial build
 
 // Global state
@@ -28,6 +32,7 @@ struct AppState {
     advanced_formula_processor: Arc<AdvancedFormulaProcessor>,
     enhanced_sqlite_service: Arc<EnhancedSQLiteService>,
     dynamic_formula_engine: Arc<std::sync::Mutex<DynamicFormulaEngine>>,
+    formula_code_manager: Arc<FormulaCodeManager>,
     // database: Arc<Database>,  // Commented out for initial build
 }
 
@@ -456,6 +461,134 @@ async fn set_formula_status(
     }
 }
 
+// Formula Code Management API Endpoints
+
+// Save formula code
+#[post("/formulas/{formula_name}/code")]
+async fn save_formula_code(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+    req: web::Json<CodeSaveRequest>,
+) -> Result<impl Responder> {
+    let formula_name = path.into_inner();
+    
+    match state.formula_code_manager.save_formula_code(&formula_name, &req.code) {
+        Ok(response) => {
+            info!("Saved code for formula: {}", formula_name);
+            Ok(HttpResponse::Ok().json(response))
+        }
+        Err(e) => {
+            error!("Failed to save code for formula {}: {}", formula_name, e);
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "message": format!("Failed to save code: {}", e),
+                "formula_name": formula_name
+            })))
+        }
+    }
+}
+
+// Test formula code compilation
+#[post("/formulas/{formula_name}/test")]
+async fn test_formula_code(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+    req: web::Json<CodeTestRequest>,
+) -> Result<impl Responder> {
+    let formula_name = path.into_inner();
+    
+    match state.formula_code_manager.test_formula_code(&formula_name, &req.code) {
+        Ok(response) => {
+            info!("Tested code for formula: {} - Success: {}", formula_name, response.success);
+            Ok(HttpResponse::Ok().json(response))
+        }
+        Err(e) => {
+            error!("Failed to test code for formula {}: {}", formula_name, e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "success": false,
+                "message": format!("Failed to test code: {}", e),
+                "formula_name": formula_name,
+                "errors": vec![e.to_string()]
+            })))
+        }
+    }
+}
+
+// Get formula code
+#[get("/formulas/{formula_name}/code")]
+async fn get_formula_code(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<impl Responder> {
+    let formula_name = path.into_inner();
+    
+    match state.formula_code_manager.get_formula_code(&formula_name) {
+        Ok(code) => {
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "formula_name": formula_name,
+                "code": code
+            })))
+        }
+        Err(e) => {
+            Ok(HttpResponse::NotFound().json(serde_json::json!({
+                "success": false,
+                "message": format!("Code not found: {}", e),
+                "formula_name": formula_name
+            })))
+        }
+    }
+}
+
+// List all formula codes
+#[get("/formulas/code")]
+async fn list_formula_codes(
+    state: web::Data<AppState>,
+) -> Result<impl Responder> {
+    match state.formula_code_manager.list_formula_codes() {
+        Ok(formulas) => {
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "formulas": formulas,
+                "count": formulas.len()
+            })))
+        }
+        Err(e) => {
+            error!("Failed to list formula codes: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "success": false,
+                "message": format!("Failed to list codes: {}", e)
+            })))
+        }
+    }
+}
+
+// Generate formula executor code template
+#[get("/formulas/{formula_name}/generate")]
+async fn generate_formula_code(
+    path: web::Path<String>,
+) -> Result<impl Responder> {
+    let formula_name = path.into_inner();
+    
+    match FormulaExecutorGenerator::generate_specific_executor(&formula_name) {
+        Ok(code) => {
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "formula_name": formula_name,
+                "code": code,
+                "message": "Code template generated successfully"
+            })))
+        }
+        Err(e) => {
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "message": format!("Failed to generate code: {}", e),
+                "formula_name": formula_name
+            })))
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Initialize logging
@@ -489,12 +622,16 @@ async fn main() -> std::io::Result<()> {
     // Initialize dynamic formula engine
     let dynamic_formula_engine = Arc::new(std::sync::Mutex::new(initialize_dynamic_formula_engine()));
     
+    // Initialize formula code manager
+    let formula_code_manager = Arc::new(FormulaCodeManager::new());
+    
     let app_state = web::Data::new(AppState {
         data_processor,
         workflow_engine,
         advanced_formula_processor,
         enhanced_sqlite_service,
         dynamic_formula_engine,
+        formula_code_manager,
         // database,  // Commented out for initial build
     });
     
@@ -529,6 +666,11 @@ async fn main() -> std::io::Result<()> {
             .service(get_registered_formulas)
             .service(get_active_formulas)
             .service(set_formula_status)
+            .service(save_formula_code)
+            .service(test_formula_code)
+            .service(get_formula_code)
+            .service(list_formula_codes)
+            .service(generate_formula_code)
             .configure(configure_formula_routes)
     })
     .bind("127.0.0.1:5002")?
