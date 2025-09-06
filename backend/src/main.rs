@@ -8,6 +8,8 @@ mod data_processor;
 mod workflow_engine;
 mod advanced_formulas;
 mod enhanced_sqlite_service;
+mod formula_config;
+mod dynamic_formula_engine;
 // mod database;  // Commented out for initial build
 mod models;
 
@@ -15,6 +17,8 @@ use data_processor::DataProcessor;
 use workflow_engine::{WorkflowEngine, WorkflowStep};
 use advanced_formulas::{AdvancedFormulaProcessor, AdvancedFormulaRequest};
 use enhanced_sqlite_service::{EnhancedSQLiteService, EnhancedSQLiteConfig};
+use formula_config::{configure_routes as configure_formula_routes, initialize_default_formulas};
+use dynamic_formula_engine::{DynamicFormulaEngine, FormulaExecutionRequest, initialize_dynamic_formula_engine};
 // use database::Database;  // Commented out for initial build
 
 // Global state
@@ -23,6 +27,7 @@ struct AppState {
     workflow_engine: Arc<WorkflowEngine>,
     advanced_formula_processor: Arc<AdvancedFormulaProcessor>,
     enhanced_sqlite_service: Arc<EnhancedSQLiteService>,
+    dynamic_formula_engine: Arc<std::sync::Mutex<DynamicFormulaEngine>>,
     // database: Arc<Database>,  // Commented out for initial build
 }
 
@@ -350,6 +355,107 @@ async fn transform_data(
     }
 }
 
+// Dynamic Formula Engine API Endpoints
+
+// Execute a formula using the dynamic engine
+#[post("/formulas/execute")]
+async fn execute_formula(
+    state: web::Data<AppState>,
+    req: web::Json<FormulaExecutionRequest>,
+) -> Result<impl Responder> {
+    let start_time = std::time::Instant::now();
+    
+    info!("Executing formula: {} with {} rows", 
+          req.formula_name, req.data.len());
+    
+    let engine = state.dynamic_formula_engine.lock().unwrap();
+    match engine.execute_formula(req.into_inner()).await {
+        Ok(result) => {
+            let total_time = start_time.elapsed().as_millis() as u64;
+            info!("Formula execution completed in {}ms", total_time);
+            Ok(HttpResponse::Ok().json(result))
+        }
+        Err(e) => {
+            error!("Formula execution failed: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "status": "error",
+                "message": format!("Formula execution failed: {}", e),
+                "processing_time_ms": start_time.elapsed().as_millis() as u64
+            })))
+        }
+    }
+}
+
+// Get all registered formulas
+#[get("/formulas/registered")]
+async fn get_registered_formulas(
+    state: web::Data<AppState>,
+) -> Result<impl Responder> {
+    let engine = state.dynamic_formula_engine.lock().unwrap();
+    let formulas = engine.get_formulas();
+    
+    let response = serde_json::json!({
+        "status": "success",
+        "formulas": formulas,
+        "count": formulas.len(),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+    
+    Ok(HttpResponse::Ok().json(response))
+}
+
+// Get active formulas only
+#[get("/formulas/active")]
+async fn get_active_formulas(
+    state: web::Data<AppState>,
+) -> Result<impl Responder> {
+    let engine = state.dynamic_formula_engine.lock().unwrap();
+    let formulas = engine.get_active_formulas();
+    
+    let response = serde_json::json!({
+        "status": "success",
+        "formulas": formulas,
+        "count": formulas.len(),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+    
+    Ok(HttpResponse::Ok().json(response))
+}
+
+// Enable/disable a formula
+#[post("/formulas/{formula_name}/status")]
+async fn set_formula_status(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+    req: web::Json<serde_json::Value>,
+) -> Result<impl Responder> {
+    let formula_name = path.into_inner();
+    let is_active = req.get("is_active")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    
+    let mut engine = state.dynamic_formula_engine.lock().unwrap();
+    match engine.set_formula_status(&formula_name, is_active) {
+        Ok(_) => {
+            info!("Set formula '{}' status to: {}", formula_name, is_active);
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "status": "success",
+                "message": format!("Formula '{}' status set to {}", formula_name, is_active),
+                "formula_name": formula_name,
+                "is_active": is_active
+            })))
+        }
+        Err(e) => {
+            error!("Failed to set formula status: {}", e);
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "status": "error",
+                "message": format!("Failed to set formula status: {}", e),
+                "formula_name": formula_name
+            })))
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Initialize logging
@@ -380,11 +486,15 @@ async fn main() -> std::io::Result<()> {
     
     // let database = Arc::new(Database::new().await);  // Commented out for initial build
     
+    // Initialize dynamic formula engine
+    let dynamic_formula_engine = Arc::new(std::sync::Mutex::new(initialize_dynamic_formula_engine()));
+    
     let app_state = web::Data::new(AppState {
         data_processor,
         workflow_engine,
         advanced_formula_processor,
         enhanced_sqlite_service,
+        dynamic_formula_engine,
         // database,  // Commented out for initial build
     });
     
@@ -399,6 +509,9 @@ async fn main() -> std::io::Result<()> {
             .allow_any_header()
             .max_age(3600);
         
+        // Initialize default formulas
+        initialize_default_formulas();
+        
         App::new()
             .wrap(cors)
             .app_data(app_state.clone())
@@ -412,6 +525,11 @@ async fn main() -> std::io::Result<()> {
             .service(import_csv)
             .service(execute_sqlite_query)
             .service(transform_data)
+            .service(execute_formula)
+            .service(get_registered_formulas)
+            .service(get_active_formulas)
+            .service(set_formula_status)
+            .configure(configure_formula_routes)
     })
     .bind("127.0.0.1:5002")?
     .run()

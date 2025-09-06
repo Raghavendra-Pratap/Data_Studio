@@ -4,6 +4,7 @@ import AppLayout from './components/AppLayout';
 import Playground from './components/Playground';
 import ErrorBoundary from './components/ErrorBoundary';
 import { EnhancedDataProcessor } from './components/EnhancedDataProcessor';
+import FormulaConfiguration from './components/FormulaConfiguration';
 import { databaseManager } from './utils/database';
 import { BackendStatusProvider } from './contexts/BackendContext';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
@@ -36,6 +37,14 @@ const TestDashboard = () => (
         <p className="text-gray-600 mb-4">Advanced data processing with Enhanced SQLite</p>
         <a href="#/data-processor" className="inline-block bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors">
           Go to Data Processor
+        </a>
+      </div>
+      
+      <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+        <h2 className="text-2xl font-semibold mb-3 text-gray-800">⚙️ Formula Config</h2>
+        <p className="text-gray-600 mb-4">Configure and manage formula definitions</p>
+        <a href="#/formula-config" className="inline-block bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+          Configure Formulas
         </a>
       </div>
     </div>
@@ -82,6 +91,20 @@ function App() {
     console.log('🚀 App: Calling initializeApp...');
     initializeApp();
   }, []);
+
+  // Apply theme at startup from saved settings so UI reflects preference even before opening Settings
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('dataStudioSettings') || 'null');
+      const theme: 'light' | 'dark' | 'auto' = saved?.general?.theme || 'light';
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const shouldDark = theme === 'dark' || (theme === 'auto' && prefersDark);
+      const root = document.documentElement;
+      if (shouldDark) root.classList.add('dark'); else root.classList.remove('dark');
+    } catch (_) {
+      // no-op
+    }
+  }, []);
   
   return (
     <ErrorBoundary>
@@ -93,6 +116,7 @@ function App() {
               <Route path="/dashboard" element={<AppLayout />} />
               <Route path="/playground" element={<Playground />} />
               <Route path="/data-processor" element={<EnhancedDataProcessor />} />
+              <Route path="/formula-config" element={<FormulaConfiguration />} />
               <Route path="/test" element={<TestDashboard />} />
             </Routes>
           </div>
@@ -103,4 +127,3 @@ function App() {
 }
 
 export default App;
-

@@ -125,64 +125,73 @@ const LivePreview: React.FC<LivePreviewProps> = ({
   const generateFinalResult = useCallback(() => {
     if (previewResults.length === 0) return null;
     
-    // For final results, we need to combine all selected columns from all workflow steps
-    // Get the original data from the first file to use as base
-    const originalData = importedFiles.length > 0 && importedFiles[0].data ? importedFiles[0].data : [];
-    if (originalData.length === 0) return null;
+    console.log('Generating Final Results with previewResults:', previewResults);
     
-    // Collect all selected columns from all workflow steps
-    const selectedColumns: string[] = [];
+    // Collect all unique columns from all workflow steps
+    const allColumns = new Set<string>();
     const workflowStepsWithColumns = workflowSteps.filter(step => step.type === 'column');
     
     console.log('Workflow steps with columns:', workflowStepsWithColumns);
     
     workflowStepsWithColumns.forEach(step => {
-      if (step.source && !selectedColumns.includes(step.source)) {
-        selectedColumns.push(step.source);
+      if (step.source) {
+        allColumns.add(step.source);
       }
     });
     
+    const selectedColumns = Array.from(allColumns);
     console.log('Selected columns from workflow steps:', selectedColumns);
     
-    // If no columns were selected, return null
-    if (selectedColumns.length === 0) return null;
+    if (selectedColumns.length === 0) {
+      console.log('No columns selected');
+      return null;
+    }
     
-    // Debug: Log the original data structure
-    console.log('Final Results Debug:', {
-      selectedColumns,
-      originalDataKeys: originalData.length > 0 ? Object.keys(originalData[0]) : [],
-      firstRow: originalData.length > 0 ? originalData[0] : null,
-      sampleSize
+    // Get the number of rows from the first result (all should have same row count)
+    const firstResult = previewResults[0];
+    if (!firstResult || !firstResult.data || firstResult.data.length === 0) {
+      console.log('No valid first result found');
+      return null;
+    }
+    
+    const rowCount = firstResult.data.length;
+    console.log('Row count from first result:', rowCount);
+    
+    // Create a map of column name to step index for efficient lookup
+    const columnToStepMap = new Map<string, number>();
+    workflowStepsWithColumns.forEach((step, index) => {
+      if (step.source) {
+        columnToStepMap.set(step.source, index);
+      }
     });
     
-    // Create final data by directly accessing the original data with all selected columns
-    const finalData = originalData.slice(0, sampleSize).map((row: any, rowIndex: number) => {
+    console.log('Column to step map:', columnToStepMap);
+    
+    // Combine data from all steps
+    const finalData = [];
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
       const finalRow: any = {};
       
-      // Add all selected columns from the original data
+      // For each selected column, get the data from its corresponding step
       selectedColumns.forEach(column => {
-        // Try exact match first
-        if (column in row) {
-          finalRow[column] = row[column];
-        } else {
-          // Try case-insensitive match
-          const matchingKey = Object.keys(row).find(key => 
-            key.toLowerCase() === column.toLowerCase()
-          );
-          if (matchingKey) {
-            finalRow[column] = row[matchingKey];
-          } else {
-            // Try partial match (in case of slight differences)
-            const partialMatch = Object.keys(row).find(key => 
-              key.toLowerCase().includes(column.toLowerCase()) || 
-              column.toLowerCase().includes(key.toLowerCase())
-            );
-            if (partialMatch) {
-              finalRow[column] = row[partialMatch];
+        const stepIndex = columnToStepMap.get(column);
+        if (stepIndex !== undefined && previewResults[stepIndex]) {
+          const stepData = previewResults[stepIndex].data[rowIndex];
+          if (stepData) {
+            // Get the value from the step's data (should be the column value)
+            const stepColumns = previewResults[stepIndex].columns;
+            if (stepColumns && stepColumns.length > 0) {
+              // Use the first (and likely only) column from this step
+              finalRow[column] = stepData[stepColumns[0]];
             } else {
-              finalRow[column] = '';
+              // Fallback: try to get the value directly
+              finalRow[column] = stepData[column] || stepData[Object.keys(stepData)[0]] || '';
             }
+          } else {
+            finalRow[column] = '';
           }
+        } else {
+          finalRow[column] = '';
         }
       });
       
@@ -191,8 +200,8 @@ const LivePreview: React.FC<LivePreviewProps> = ({
         console.log(`Final row ${rowIndex}:`, finalRow);
       }
       
-      return finalRow;
-    });
+      finalData.push(finalRow);
+    }
     
     // Calculate execution time and memory usage
     const totalExecutionTime = previewResults.reduce((sum, result) => sum + result.executionTime, 0);
@@ -202,7 +211,9 @@ const LivePreview: React.FC<LivePreviewProps> = ({
     console.log('Final result data:', {
       finalData: finalData.slice(0, 3), // First 3 rows
       columns: selectedColumns,
-      rowCount: finalData.length
+      rowCount: finalData.length,
+      previewResultsLength: previewResults.length,
+      columnToStepMap: Object.fromEntries(columnToStepMap)
     });
     
     return {
@@ -214,7 +225,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({
       sampleSize: finalData.length,
       stepIndex: previewResults.length - 1
     };
-  }, [previewResults, importedFiles, workflowSteps, sampleSize]);
+  }, [previewResults, workflowSteps, sampleSize]);
 
   // Get current preview result based on mode
   const currentPreview = (() => {
@@ -438,6 +449,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({
                         Showing {currentPreview.data.length} of {currentPreview.rowCount} rows 
                         (Sample size: {currentPreview.sampleSize})
                         {previewResultMode === 'final' && ` • All ${workflowSteps.length} steps completed`}
+                        {previewResultMode === 'final' && ` • Columns: ${currentPreview.columns?.join(', ') || 'None'}`}
                       </span>
                       <span>
                         {currentPreview.executionTime.toFixed(2)}ms • {currentPreview.memoryUsage.toFixed(2)}MB

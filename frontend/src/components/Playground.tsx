@@ -12,6 +12,7 @@ import ExecuteWorkflowDialog, { ExecuteWorkflowTemplate } from './ExecuteWorkflo
 import { formulaService, FormulaDefinition } from '../utils/formulaService';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { backendService, BackendWorkflowRequest } from '../services/BackendService';
+import { formulaConfigService } from '../services/FormulaConfigService';
 import { enhancedSQLiteService, DataOperation } from '../services/EnhancedSQLiteService';
 import ErrorBoundary from './ErrorBoundary';
 import { 
@@ -43,7 +44,10 @@ import {
   Play,
   Save,
   Database,
-  AlertCircle
+  AlertCircle,
+  Link2,
+  Unlink,
+  Settings
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useBackendStatus } from '../hooks/useBackendStatus';
@@ -125,6 +129,18 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   const [activeFunction, setActiveFunction] = useState<string | null>(null);
   const [functionParameters, setFunctionParameters] = useState<string[]>([]);
   const [isFunctionOpen, setIsFunctionOpen] = useState(false);
+  
+  // Enhanced formula parameter state
+  const [formulaConfig, setFormulaConfig] = useState<{
+    delimiter?: string;
+    ignoreEmpty?: boolean;
+    conditionValue?: string;
+    trueValue?: string;
+    falseValue?: string;
+    selectedColumns: string[];
+  }>({
+    selectedColumns: []
+  });
 
   // Enhanced Formula Engine State
   const [formulaSearchTerm, setFormulaSearchTerm] = useState('');
@@ -147,6 +163,9 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [previewResultMode, setPreviewResultMode] = useState<'step' | 'final'>('step');
+  
+  // Data Definition Layer state
+  const [dataLinkageMode, setDataLinkageMode] = useState<{[key: string]: 'linked' | 'unlinked'}>({});
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   
   // Enhanced Execute state
@@ -213,6 +232,34 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     result?: any;
   }>>([]);
   const [sqliteExecutionResults, setSqliteExecutionResults] = useState<any>(null);
+
+  // Initialize defaults from saved Settings (if present)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('dataStudioSettings') || 'null');
+      if (saved?.playground?.formulaEngineView) {
+        const v: string = saved.playground.formulaEngineView;
+        if (v === 'category') setFormulaViewMode('categories');
+        else if (v === 'normal') setFormulaViewMode('normal');
+        else if (v === 'detailed') setFormulaViewMode('normal');
+      }
+      if (saved?.playground?.defaultSorting) {
+        const s: string = saved.playground.defaultSorting;
+        if (s === 'name') setFormulaSortBy('name');
+        else if (s === 'category') setFormulaSortBy('category');
+        else setFormulaSortBy('name');
+      }
+      if (saved?.playground?.workflowMode) {
+        const wm: string = saved.playground.workflowMode;
+        if (wm === 'sheet' || wm === 'column') setWorkflowMode(wm);
+      }
+      if (saved?.general?.performanceMode === 'low-end') {
+        setSampleSize(10);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }, []);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -511,14 +558,10 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
     setFunctionParameters([]);
     setIsFunctionOpen(true);
     
-    // Add function step to workflow
-    addWorkflowStep({
-      type: 'function',
-      source: functionName,
-      parameters: []
-    });
+    // Don't add workflow step until columns are selected
+    // The workflow step will be created in completeFunction() when parameters are ready
 
-    // Auto-scroll to show the new function step
+    // Auto-scroll to show the function parameter collection area
       setTimeout(() => {
         scrollWorkflowToBottom();
       }, 100);
@@ -526,28 +569,64 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
 
   // Complete function with parameters - now validates using formula service
   const completeFunction = () => {
-    if (activeFunction && functionParameters.length > 0) {
+    if (activeFunction && formulaConfig.selectedColumns.length > 0) {
+      // Build parameters array from formula configuration
+      const parameters: string[] = [];
+      const functionName = activeFunction.toUpperCase();
+      
+      // Add function-specific parameters based on configuration
+      switch (functionName) {
+        case 'TEXT_JOIN':
+          parameters.push(formulaConfig.delimiter || ', ');
+          parameters.push(formulaConfig.ignoreEmpty ? 'TRUE' : 'FALSE');
+          parameters.push(...formulaConfig.selectedColumns);
+          break;
+          
+        case 'IF':
+          parameters.push(formulaConfig.selectedColumns[0]); // condition column
+          parameters.push(formulaConfig.conditionValue || '');
+          parameters.push(formulaConfig.trueValue || '');
+          parameters.push(formulaConfig.falseValue || '');
+          break;
+          
+        case 'ADD':
+        case 'SUBTRACT':
+        case 'MULTIPLY':
+        case 'DIVIDE':
+          parameters.push(...formulaConfig.selectedColumns.slice(0, 2)); // first two columns
+          break;
+          
+        case 'UPPER':
+        case 'LOWER':
+        case 'TRIM':
+        case 'TEXT_LENGTH':
+        case 'PROPER_CASE':
+          parameters.push(formulaConfig.selectedColumns[0]); // first column
+          break;
+          
+        default:
+          parameters.push(...formulaConfig.selectedColumns);
+      }
+      
       // Validate formula using service
-      const validation = formulaService.validateFormula(activeFunction, functionParameters);
+      const validation = formulaService.validateFormula(activeFunction, parameters);
       if (!validation.isValid) {
         alert(`Formula validation failed: ${validation.errors.join(', ')}`);
         return;
       }
 
-      // Update the last function step with parameters
-      setWorkflowSteps(prev => {
-        const newSteps = [...prev];
-        const lastStep = newSteps[newSteps.length - 1];
-        if (lastStep && lastStep.type === 'function') {
-          lastStep.parameters = functionParameters;
-        }
-        return newSteps;
+      // Create new workflow step with parameters
+      addWorkflowStep({
+        type: 'function',
+        source: activeFunction,
+        parameters: parameters
       });
       
       // Reset function state
       setActiveFunction(null);
       setFunctionParameters([]);
       setIsFunctionOpen(false);
+      setFormulaConfig({ selectedColumns: [] });
 
       // Auto-scroll to show the completed function step
       setTimeout(() => {
@@ -651,9 +730,12 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
 
     // Check if we're in function mode (function is open and needs parameters)
     if (isFunctionOpen && activeFunction) {
-      // Add column as a parameter to the active function
-      setFunctionParameters(prev => [...prev, column]);
-      console.log(`Added column "${column}" as parameter for function "${activeFunction}"`);
+      // Add column to the formula configuration
+      setFormulaConfig(prev => ({
+        ...prev,
+        selectedColumns: [...prev.selectedColumns, columnRef.columnName]
+      }));
+      console.log(`Added column "${columnRef.columnName}" to formula configuration for function "${activeFunction}"`);
     } else {
       // Add column selection to workflow as a new step
       addWorkflowStep({
@@ -914,7 +996,27 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
       return prev;
     });
     
+    // Remove data linkage mode for deleted file
+    setDataLinkageMode(prev => {
+      const newMode = { ...prev };
+      delete newMode[fileName];
+      return newMode;
+    });
+    
     console.log("Successfully deleted file:", fileName);
+  };
+
+  // Handle data linkage mode toggle
+  const handleDataLinkageToggle = (fileName: string, sheetName?: string) => {
+    const key = sheetName ? `${fileName}-${sheetName}` : fileName;
+    setDataLinkageMode(prev => {
+      const currentMode = prev[key] || 'unlinked'; // Default to unlinked
+      const newMode = currentMode === 'linked' ? 'unlinked' : 'linked';
+      return {
+        ...prev,
+        [key]: newMode
+      };
+    });
   };
 
   // Calculate section heights
@@ -1320,11 +1422,44 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                 }`} title={!textWrapEnabled ? file.name : undefined}>
                   {textWrapEnabled ? file.name : getTruncatedFileName(file.name, 35)}
                 </h3>
-                <span className={`text-xs text-blue-600 font-medium ${
-                  textWrapEnabled ? 'break-words' : 'truncate'
-                }`} title={!textWrapEnabled ? sheetName : undefined}>▸ {textWrapEnabled ? sheetName : getTruncatedFileName(sheetName, 20)}</span>
+                <div className="flex items-center space-x-2">
+                  <span className={`text-xs text-blue-600 font-medium ${
+                    textWrapEnabled ? 'break-words' : 'truncate'
+                  }`} title={!textWrapEnabled ? sheetName : undefined}>▸ {textWrapEnabled ? sheetName : getTruncatedFileName(sheetName, 20)}</span>
+                  {(() => {
+                    const linkageKey = `${file.name}-${sheetName}`;
+                    const isLinked = dataLinkageMode[linkageKey] === 'linked';
+                    return (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        isLinked 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {isLinked ? 'Linked' : 'Unlinked'}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="flex items-center space-x-1 flex-shrink-0">
+                {/* Data Linkage Toggle */}
+                {(() => {
+                  const linkageKey = `${file.name}-${sheetName}`;
+                  const isLinked = dataLinkageMode[linkageKey] === 'linked';
+                  return (
+                    <button
+                      onClick={() => handleDataLinkageToggle(file.name, sheetName)}
+                      className={`p-1 rounded-md transition-colors ${
+                        isLinked 
+                          ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                      title={isLinked ? 'Linked data - click to make unlinked' : 'Unlinked data - click to make linked'}
+                    >
+                      {isLinked ? <Link2 className="w-4 h-4" /> : <Unlink className="w-4 h-4" />}
+                    </button>
+                  );
+                })()}
                 {/* Header Configuration Button (3 dots) for Sheet */}
                 <button
                   onClick={() => handleHeaderConfig({ ...file, currentSheet: sheetName })}
@@ -1394,9 +1529,42 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
               }`} title={!textWrapEnabled ? file.name : undefined}>
                 {textWrapEnabled ? file.name : getTruncatedFileName(file.name, 35)}
               </h3>
-              <span className="text-xs text-gray-500">({Array.isArray(file.columns) ? file.columns.length : 0} columns)</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500">({Array.isArray(file.columns) ? file.columns.length : 0} columns)</span>
+                {(() => {
+                  const linkageKey = file.name;
+                  const isLinked = dataLinkageMode[linkageKey] === 'linked';
+                  return (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      isLinked 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {isLinked ? 'Linked' : 'Unlinked'}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
             <div className="flex items-center space-x-1 flex-shrink-0">
+              {/* Data Linkage Toggle */}
+              {(() => {
+                const linkageKey = file.name;
+                const isLinked = dataLinkageMode[linkageKey] === 'linked';
+                return (
+                  <button
+                    onClick={() => handleDataLinkageToggle(file.name)}
+                    className={`p-1 rounded-md transition-colors ${
+                      isLinked 
+                        ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                    title={isLinked ? 'Linked data - click to make unlinked' : 'Unlinked data - click to make linked'}
+                  >
+                    {isLinked ? <Link2 className="w-4 h-4" /> : <Unlink className="w-4 h-4" />}
+                  </button>
+                );
+              })()}
               {/* Header Configuration Button (3 dots) for CSV */}
               <button
                 onClick={() => handleHeaderConfig({ ...file, currentSheet: 'main' })}
@@ -1476,24 +1644,18 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
               <p className="text-sm text-gray-600">Build and execute data workflows</p>
               <div className="flex items-center space-x-2 mt-1">
                 <div className={`w-2 h-2 rounded-full ${
-                  isFunctionOpen 
-                    ? 'bg-blue-500' 
-                    : backendConnected 
-                      ? 'bg-green-500' 
-                      : 'bg-red-500'
+                  backendConnected 
+                    ? 'bg-green-500' 
+                    : 'bg-red-500'
                 } animate-pulse`}></div>
                 <span className={`text-xs font-medium ${
-                  isFunctionOpen 
-                    ? 'text-blue-600' 
-                    : backendConnected 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
+                  backendConnected 
+                    ? 'text-green-600' 
+                    : 'text-red-600'
                 }`}>
-                  {isFunctionOpen 
-                    ? `Function Mode: ${activeFunction} (click columns to add parameters)` 
-                    : backendConnected 
-                      ? 'Ready for workflow building' 
-                      : 'Backend disconnected - workflow building limited'
+                  {backendConnected 
+                    ? 'Ready for workflow building' 
+                    : 'Backend disconnected - workflow building limited'
                   }
                 </span>
               </div>
@@ -1524,6 +1686,14 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
             >
               <RefreshCw className="w-4 h-4" />
               <span>Test Backend</span>
+            </button>
+            <button 
+              onClick={() => navigate('/formula-config')}
+              className="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg transition-colors flex items-center space-x-2 hover:shadow-sm"
+              title="Configure formula definitions and parameters"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Formula Config</span>
             </button>
             <button 
               onClick={saveWorkflow}
@@ -2106,15 +2276,132 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                                 Function Parameter Collection Active
                               </span>
                             </div>
-                            <div className="text-xs text-blue-700 mb-3">
-                              💡 <strong>Tip:</strong> Click columns in the Data Preview to add parameters, then press <kbd className="px-2 py-1 bg-blue-200 border border-blue-300 rounded text-xs font-mono">Enter</kbd> to complete
-                            </div>
-                            <div className="text-xs text-blue-600 mb-3 p-2 bg-white rounded border border-blue-200">
-                              <span className="font-medium">Current Function:</span> <strong>{step.source}</strong>
-                              <br />
-                              <span className="font-medium">Parameters:</span> <span className="font-mono">[{functionParameters.join(', ')}]</span>
-                            </div>
-                            {functionParameters.length > 0 && (
+                            {/* Enhanced Formula Parameter Collection */}
+                            {(() => {
+                              const functionName = step.source.toUpperCase();
+                              
+                              return (
+                                <div className="space-y-3">
+                                  {/* Function-specific parameter inputs */}
+                                  {functionName === 'TEXT_JOIN' && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs font-medium text-blue-700">
+                                        Text Join Configuration
+                                      </div>
+                                      <div className="grid gap-2 grid-cols-2">
+                                        <div>
+                                          <label className="text-xs text-gray-600">Delimiter</label>
+                                          <input
+                                            type="text"
+                                            value={formulaConfig.delimiter || ''}
+                                            onChange={(e) => setFormulaConfig(prev => ({ ...prev, delimiter: e.target.value }))}
+                                            placeholder=", "
+                                            className="w-20 px-2 py-1 text-xs border border-gray-300 rounded"
+                                          />
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <input
+                                            type="checkbox"
+                                            id="ignoreEmpty"
+                                            checked={formulaConfig.ignoreEmpty || false}
+                                            onChange={(e) => setFormulaConfig(prev => ({ ...prev, ignoreEmpty: e.target.checked }))}
+                                            className="rounded"
+                                          />
+                                          <label htmlFor="ignoreEmpty" className="text-xs text-gray-600">Ignore Empty</label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'].includes(functionName) && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs font-medium text-blue-700">Mathematical Operation</div>
+                                      <div className="text-xs text-gray-600">
+                                        Select two numeric columns from the Data Preview below
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {functionName === 'IF' && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs font-medium text-blue-700">Conditional Logic</div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="text-xs text-gray-600">Compare Value</label>
+                                          <input
+                                            type="text"
+                                            value={formulaConfig.conditionValue || ''}
+                                            onChange={(e) => setFormulaConfig(prev => ({ ...prev, conditionValue: e.target.value }))}
+                                            placeholder="Value to compare"
+                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-gray-600">True Value</label>
+                                          <input
+                                            type="text"
+                                            value={formulaConfig.trueValue || ''}
+                                            onChange={(e) => setFormulaConfig(prev => ({ ...prev, trueValue: e.target.value }))}
+                                            placeholder="Value if true"
+                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-gray-600">False Value</label>
+                                          <input
+                                            type="text"
+                                            value={formulaConfig.falseValue || ''}
+                                            onChange={(e) => setFormulaConfig(prev => ({ ...prev, falseValue: e.target.value }))}
+                                            placeholder="Value if false"
+                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {['UPPER', 'LOWER', 'TRIM', 'TEXT_LENGTH', 'PROPER_CASE'].includes(functionName) && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs font-medium text-blue-700">Text Transformation</div>
+                                      <div className="text-xs text-gray-600">
+                                        Select a text column from the Data Preview below
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Selected Columns Display */}
+                                  <div className="text-xs text-blue-600 p-2 bg-white rounded border border-blue-200">
+                                    <span className="font-medium">Selected Columns:</span>
+                                    {formulaConfig.selectedColumns.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {formulaConfig.selectedColumns.map((col, index) => (
+                                          <span
+                                            key={index}
+                                            className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                                          >
+                                            {col}
+                                            <button
+                                              onClick={() => setFormulaConfig(prev => ({
+                                                ...prev,
+                                                selectedColumns: prev.selectedColumns.filter((_, i) => i !== index)
+                                              }))}
+                                              className="ml-1 text-blue-600 hover:text-blue-800"
+                                            >
+                                              ×
+                                            </button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-gray-500 mt-1">
+                                        Click columns in the Data Preview to add them
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {formulaConfig.selectedColumns.length > 0 && (
                               <div className="flex items-center space-x-2">
                               <button
                                 onClick={completeFunction}
@@ -2124,7 +2411,7 @@ const Playground: React.FC<PlaygroundProps> = ({ isEmbedded = false, onBack }) =
                                   <span>Complete Function</span>
                               </button>
                                 <button
-                                  onClick={() => setFunctionParameters([])}
+                                  onClick={() => setFormulaConfig({ selectedColumns: [] })}
                                   className="px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded-lg transition-colors"
                                 >
                                   Reset

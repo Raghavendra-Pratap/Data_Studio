@@ -386,7 +386,7 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Sidebar Navigation with Tooltips */}
       <div className="w-16 bg-gray-900 flex flex-col items-center py-6 space-y-8 relative z-20" style={{ pointerEvents: 'auto' }}>
         <div className="text-white relative group">
@@ -410,22 +410,22 @@ const AppLayout: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         {/* Top Bar */}
-        <div className="bg-white h-16 px-6 flex items-center justify-between border-b">
+        <div className="bg-white dark:bg-gray-800 h-16 px-6 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold">Unified Data Studio</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Unified Data Studio</h1>
             {/* Backend Status Indicator */}
             <BackendStatusIndicator />
             {/* Dynamic breadcrumb navigation */}
             {selectedProject && (
               <div className="flex items-center text-sm text-gray-500">
                 <span 
-                  className="cursor-pointer hover:text-gray-700"
+                  className="cursor-pointer hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
                   onClick={() => setSelectedProject(null)}
                 >
                   Projects
                 </span>
-                <ChevronRight className="w-4 h-4 mx-1" />
-                <span>{selectedProject.name}</span>
+                <ChevronRight className="w-4 h-4 mx-1 text-gray-500 dark:text-gray-400" />
+                <span className="text-gray-700 dark:text-gray-200">{selectedProject.name}</span>
               </div>
             )}
           </div>

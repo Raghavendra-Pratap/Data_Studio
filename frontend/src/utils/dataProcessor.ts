@@ -113,7 +113,7 @@ class DataProcessor {
         case 'function':
           // Apply function transformation
           resultData = await this.processFunctionApplication(step, fileData, sampleSize);
-          resultColumns = ['Input_Column', 'Output_Column'];
+          resultColumns = this.getFunctionOutputColumns(step);
           break;
 
         case 'custom':
@@ -214,6 +214,51 @@ class DataProcessor {
     });
   }
 
+  // Get output columns for function steps
+  private getFunctionOutputColumns(step: WorkflowStep): string[] {
+    const functionName = step.source.toUpperCase();
+    const parameters = step.parameters || [];
+    
+    // If no parameters, return empty array
+    if (parameters.length === 0) {
+      return [];
+    }
+    
+    // Return appropriate column names based on function type
+    switch (functionName) {
+      case 'UPPER':
+      case 'LOWER':
+      case 'TRIM':
+      case 'TEXT_LENGTH':
+      case 'PROPER_CASE':
+      case 'REVERSE':
+      case 'CAPITALIZE':
+        return [parameters[0] || 'input_column', `${functionName.toLowerCase()}_result`];
+        
+      case 'ADD':
+      case 'SUBTRACT':
+      case 'MULTIPLY':
+      case 'DIVIDE':
+        return [parameters[0] || 'column1', parameters[1] || 'column2', `${functionName.toLowerCase()}_result`];
+        
+      case 'TEXT_JOIN':
+        return ['joined_text'];
+        
+      case 'IF':
+        return [parameters[0] || 'condition', 'if_result'];
+        
+      case 'SUM':
+        return ['sum_result'];
+        
+      case 'COUNT':
+      case 'UNIQUE_COUNT':
+        return [`${functionName.toLowerCase()}_result`];
+        
+      default:
+        return ['input_column', 'output_column'];
+    }
+  }
+
   // Process function application step with enhanced formula support
   private async processFunctionApplication(
     step: WorkflowStep,
@@ -229,6 +274,12 @@ class DataProcessor {
     const functionName = step.source.toUpperCase();
     const parameters = step.parameters || [];
     
+    // If no parameters are provided, return empty result
+    if (parameters.length === 0) {
+      console.warn(`Function ${functionName} has no parameters - returning empty result`);
+      return [];
+    }
+    
     // Get the input data - this should be from the previous step
     const sourceData = fileData[0].data;
     const sampleData = sourceData.slice(0, sampleSize);
@@ -237,58 +288,58 @@ class DataProcessor {
     console.log(`Sample input data:`, sampleData.slice(0, 2));
     
     return sampleData.map((row, rowIndex) => {
-      // For function steps, we need to determine which column to process
-      // If parameters are provided, use the first parameter as the input column
-      // Otherwise, try to use the first available column
-      let inputColumn = parameters[0];
-      if (!inputColumn) {
-        // Fallback: use the first available column
-        const availableColumns = Object.keys(row);
-        inputColumn = availableColumns[0] || 'unknown';
-        console.log(`No parameter specified, using first available column: ${inputColumn}`);
-      }
-      
-      const inputValue = row[inputColumn] || '';
-      let outputValue = inputValue;
-      
-      console.log(`Row ${rowIndex}: processing column "${inputColumn}" with value "${inputValue}"`);
+      const result: any = {};
       
       try {
         // Apply transformations based on function name
         switch (functionName) {
           case 'UPPER':
           case 'UPPERCASE':
-            outputValue = String(inputValue).toUpperCase();
+            const inputColumn = parameters[0] || Object.keys(row)[0];
+            result[inputColumn] = row[inputColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[inputColumn] || '').toUpperCase();
             break;
             
           case 'LOWER':
           case 'LOWERCASE':
-            outputValue = String(inputValue).toLowerCase();
+            const lowerColumn = parameters[0] || Object.keys(row)[0];
+            result[lowerColumn] = row[lowerColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[lowerColumn] || '').toLowerCase();
             break;
             
           case 'TRIM':
-            outputValue = String(inputValue).trim();
+            const trimColumn = parameters[0] || Object.keys(row)[0];
+            result[trimColumn] = row[trimColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[trimColumn] || '').trim();
             break;
             
           case 'TEXT_LENGTH':
           case 'LEN':
-            outputValue = String(inputValue).length;
+            const lenColumn = parameters[0] || Object.keys(row)[0];
+            result[lenColumn] = row[lenColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[lenColumn] || '').length;
             break;
             
           case 'TITLE_CASE':
           case 'PROPER':
           case 'PROPER_CASE':
-            outputValue = String(inputValue).replace(/\w\S*/g, (txt) => 
+            const properColumn = parameters[0] || Object.keys(row)[0];
+            result[properColumn] = row[properColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[properColumn] || '').replace(/\w\S*/g, (txt) => 
               txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
             );
             break;
             
           case 'REVERSE':
-            outputValue = String(inputValue).split('').reverse().join('');
+            const reverseColumn = parameters[0] || Object.keys(row)[0];
+            result[reverseColumn] = row[reverseColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[reverseColumn] || '').split('').reverse().join('');
             break;
             
           case 'CAPITALIZE':
-            outputValue = String(inputValue).charAt(0).toUpperCase() + String(inputValue).slice(1);
+            const capColumn = parameters[0] || Object.keys(row)[0];
+            result[capColumn] = row[capColumn];
+            result[`${functionName.toLowerCase()}_result`] = String(row[capColumn] || '').charAt(0).toUpperCase() + String(row[capColumn] || '').slice(1);
             break;
             
           case 'ADD':
@@ -296,7 +347,9 @@ class DataProcessor {
             if (parameters.length >= 2) {
               const val1 = parseFloat(row[parameters[0]] || 0);
               const val2 = parseFloat(row[parameters[1]] || 0);
-              outputValue = val1 + val2;
+              result[parameters[0]] = val1;
+              result[parameters[1]] = val2;
+              result[`${functionName.toLowerCase()}_result`] = val1 + val2;
             }
             break;
             
@@ -304,7 +357,9 @@ class DataProcessor {
             if (parameters.length >= 2) {
               const val1 = parseFloat(row[parameters[0]] || 0);
               const val2 = parseFloat(row[parameters[1]] || 0);
-              outputValue = val1 - val2;
+              result[parameters[0]] = val1;
+              result[parameters[1]] = val2;
+              result[`${functionName.toLowerCase()}_result`] = val1 - val2;
             }
             break;
             
@@ -312,26 +367,74 @@ class DataProcessor {
             if (parameters.length >= 2) {
               const val1 = parseFloat(row[parameters[0]] || 0);
               const val2 = parseFloat(row[parameters[1]] || 0);
-              outputValue = val1 * val2;
+              result[parameters[0]] = val1;
+              result[parameters[1]] = val2;
+              result[`${functionName.toLowerCase()}_result`] = val1 * val2;
             }
             break;
             
+          case 'DIVIDE':
+            if (parameters.length >= 2) {
+              const val1 = parseFloat(row[parameters[0]] || 0);
+              const val2 = parseFloat(row[parameters[1]] || 0);
+              result[parameters[0]] = val1;
+              result[parameters[1]] = val2;
+              result[`${functionName.toLowerCase()}_result`] = val2 !== 0 ? val1 / val2 : 0;
+            }
+            break;
+            
+          case 'TEXT_JOIN':
+            if (parameters.length >= 3) {
+              const delimiter = parameters[0];
+              const ignoreEmpty = parameters[1] === 'TRUE' || parameters[1] === 'true';
+              const textColumns = parameters.slice(2);
+              const values = textColumns.map(col => row[col]).filter(val => !ignoreEmpty || val !== '');
+              result['joined_text'] = values.join(delimiter);
+            }
+            break;
+            
+          case 'IF':
+            if (parameters.length >= 4) {
+              const conditionColumn = parameters[0];
+              const conditionValue = parameters[1];
+              const trueValue = parameters[2];
+              const falseValue = parameters[3];
+              result[conditionColumn] = row[conditionColumn];
+              result['if_result'] = row[conditionColumn] === conditionValue ? trueValue : falseValue;
+            }
+            break;
+            
+          case 'SUM':
+            const sumColumns = parameters.length > 0 ? parameters : Object.keys(row).filter(key => !isNaN(parseFloat(row[key])));
+            const sumValue = sumColumns.reduce((sum, col) => sum + parseFloat(row[col] || 0), 0);
+            result['sum_result'] = sumValue;
+            break;
+            
+          case 'COUNT':
+            const countColumn = parameters[0] || Object.keys(row)[0];
+            result[countColumn] = row[countColumn];
+            result['count_result'] = row[countColumn] !== null && row[countColumn] !== undefined && row[countColumn] !== '' ? 1 : 0;
+            break;
+            
+          case 'UNIQUE_COUNT':
+            const uniqueColumn = parameters[0] || Object.keys(row)[0];
+            result[uniqueColumn] = row[uniqueColumn];
+            result['unique_count_result'] = 1; // This would need to be calculated across all rows
+            break;
+            
           default:
-            outputValue = `[Unknown function: ${functionName}]`;
+            result['input_column'] = row[Object.keys(row)[0]];
+            result['output_column'] = `[Unknown function: ${functionName}]`;
         }
         
-        console.log(`Row ${rowIndex}: ${functionName}("${inputValue}") = "${outputValue}"`);
-        
-        return {
-          'Input_Column': inputValue,
-          'Output_Column': outputValue
-        };
+        console.log(`Row ${rowIndex}: ${functionName} result:`, result);
+        return result;
         
       } catch (error) {
         console.error(`Error processing row ${rowIndex} with function ${functionName}:`, error);
         return {
-          'Input_Column': inputValue,
-          'Output_Column': `[Error: ${error}]`
+          'input_column': row[Object.keys(row)[0]],
+          'output_column': `[Error: ${error}]`
         };
       }
     });

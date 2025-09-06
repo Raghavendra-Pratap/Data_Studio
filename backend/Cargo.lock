@@ -4521,6 +4521,7 @@ dependencies = [
  "config",
  "dotenv",
  "futures",
+ "lazy_static",
  "ndarray",
  "polars",
  "rusqlite",

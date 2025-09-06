@@ -18,6 +18,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
+import { useBackendStatus } from '../hooks/useBackendStatus';
+import { databaseManager } from '../utils/database';
 
 interface SettingsProps {
   onSaveSettings?: (settings: any) => void;
@@ -110,7 +112,31 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
         console.log('No saved settings found, using defaults');
       }
     }
+    // Apply theme on initial mount based on stored or default settings
+    try {
+      const parsed = JSON.parse(savedSettings || 'null') as SettingsData | null;
+      const theme = parsed?.general?.theme || settings.general.theme;
+      applyTheme(theme);
+    } catch (_) {
+      applyTheme(settings.general.theme);
+    }
   }, []);
+
+  // Apply theme whenever it changes
+  useEffect(() => {
+    applyTheme(settings.general.theme);
+  }, [settings.general.theme]);
+
+  const applyTheme = (theme: 'light' | 'dark' | 'auto') => {
+    const root = document.documentElement;
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldDark = theme === 'dark' || (theme === 'auto' && prefersDark);
+    if (shouldDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  };
 
   const handleSettingChange = (section: keyof SettingsData, key: string, value: any) => {
     setSettings(prev => ({
@@ -131,18 +157,32 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
   };
 
   const handleCreateBackup = async () => {
-    setBackupStatus('creating');
-    setBackupMessage('Creating backup...');
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setBackupStatus('success');
-    setBackupMessage('Backup created successfully!');
-    
-    setTimeout(() => {
-      setBackupStatus('idle');
-      setBackupMessage('');
-    }, 3000);
+    try {
+      setBackupStatus('creating');
+      setBackupMessage('Creating backup...');
+
+      // Export projects and workflows from the local database
+      const exportPayload = await databaseManager.exportData();
+      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      a.href = url;
+      a.download = `uds-backup-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setBackupStatus('success');
+      setBackupMessage('Backup created and downloaded successfully');
+      setTimeout(() => {
+        setBackupStatus('idle');
+        setBackupMessage('');
+      }, 2500);
+    } catch (error) {
+      console.error('Backup failed:', error);
+      setBackupStatus('error');
+      setBackupMessage('Backup failed');
+    }
   };
 
   const handleRestoreBackup = () => {
@@ -151,21 +191,25 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (!file) return;
+    try {
       setBackupStatus('restoring');
       setBackupMessage('Restoring backup...');
-      
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await databaseManager.importData(data);
+      setBackupStatus('success');
+      setBackupMessage('Backup restored successfully');
       setTimeout(() => {
-        setBackupStatus('success');
-        setBackupMessage('Backup restored successfully!');
-        
-        setTimeout(() => {
-          setBackupStatus('idle');
-          setBackupMessage('');
-        }, 3000);
-      }, 2000);
+        setBackupStatus('idle');
+        setBackupMessage('');
+      }, 2500);
+    } catch (error) {
+      console.error('Restore failed:', error);
+      setBackupStatus('error');
+      setBackupMessage('Restore failed - invalid file or import error');
     }
   };
 
@@ -210,22 +254,27 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
   const handleReset = () => {
     if (window.confirm('Are you sure you want to reset all settings to default values?')) {
       localStorage.removeItem('dataStudioSettings');
+      // also clear theme
+      document.documentElement.classList.remove('dark');
       window.location.reload();
     }
   };
 
+  // Backend status and controls
+  const { status: backendStatus, isConnected, isError, isStarting, isStopped, checkHealth, restartBackend } = useBackendStatus();
+
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
               <SettingsIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-              <p className="text-gray-600">Configure your Unified Data Studio preferences</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+              <p className="text-gray-600 dark:text-gray-300">Configure your Unified Data Studio preferences</p>
             </div>
           </div>
           
@@ -256,7 +305,40 @@ const Settings: React.FC<SettingsProps> = ({ onSaveSettings }) => {
       {/* Main Content - All Settings in One Scrollable Page */}
       <div className="flex-1 overflow-auto scroll-smooth">
         <div className="p-8 space-y-8 max-w-6xl mx-auto">
-        
+
+        {/* Backend Controls */}
+        <Card className="border-0 shadow-sm bg-gradient-to-r from-emerald-50 to-green-50 mx-auto">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-3 bg-emerald-100 rounded-lg">
+                <Play className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Backend</h2>
+                <p className="text-gray-600">Connection status and controls</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : isStarting ? 'bg-yellow-500' : isError || isStopped ? 'bg-red-500' : 'bg-gray-400'}`} />
+                <div>
+                  <div className="text-sm font-medium text-gray-800">Status: {backendStatus.status}</div>
+                  {backendStatus.message && (
+                    <div className="text-xs text-gray-500">{backendStatus.message}</div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button onClick={checkHealth} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm">Check Health</button>
+                <button onClick={restartBackend} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm flex items-center">
+                  <RefreshCw className="w-4 h-4 mr-1" /> Restart
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* General Settings */}
         <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50 mx-auto">
           <CardContent className="p-6">
