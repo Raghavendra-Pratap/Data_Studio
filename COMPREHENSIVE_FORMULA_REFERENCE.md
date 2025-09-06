@@ -27,7 +27,7 @@ This document provides a comprehensive reference for all formulas, functions, an
 - **Use Cases**: Real-world examples
 - **Performance Notes**: Performance considerations
 
-**Total Formulas: 250+**
+**Total Formulas: 270+**
 **Implementation Timeline: 20 months**
 **Competitive Advantage: Industry-leading analytics platform**
 
@@ -279,6 +279,292 @@ fn remove_duplicates(data: DataFrame, columns: Option<Vec<&str>>) -> DataFrame {
 ```
 **Use Cases**: Data cleaning, ensuring uniqueness
 **Performance**: O(n log n) where n is number of rows
+
+### Advanced Text Processing
+
+#### UNICODE_NORMALIZE
+**Purpose**: Normalize Unicode text using specified form
+**Syntax**: `UNICODE_NORMALIZE(text, form)`
+**Parameters**:
+- `text` (string): Text to normalize
+- `form` (string): Normalization form (NFC, NFD, NFKC, NFKD)
+
+**Return Value**: String - Normalized text
+**Implementation Logic**:
+```rust
+fn unicode_normalize(text: &str, form: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    match form {
+        "NFC" => text.nfc().collect(),
+        "NFD" => text.nfd().collect(),
+        "NFKC" => text.nfkc().collect(),
+        "NFKD" => text.nfkd().collect(),
+        _ => text.to_string(),
+    }
+}
+```
+**Use Cases**: Text standardization, data cleaning
+**Performance**: O(n) where n is string length
+
+#### ASCII_CONVERT
+**Purpose**: Convert text to ASCII with error handling
+**Syntax**: `ASCII_CONVERT(text, error_handling)`
+**Parameters**:
+- `text` (string): Text to convert
+- `error_handling` (string): Error handling mode (ignore, replace, strict)
+
+**Return Value**: String - ASCII converted text
+**Implementation Logic**:
+```rust
+fn ascii_convert(text: &str, error_handling: &str) -> String {
+    match error_handling {
+        "ignore" => text.chars().filter(|c| c.is_ascii()).collect(),
+        "replace" => text.chars().map(|c| if c.is_ascii() { c } else { '?' }).collect(),
+        "strict" => text.to_ascii(),
+        _ => text.to_string(),
+    }
+}
+```
+**Use Cases**: Data cleaning, character encoding standardization
+**Performance**: O(n) where n is string length
+
+#### TEXT_REPLACE
+**Purpose**: Replace text patterns with advanced options
+**Syntax**: `TEXT_REPLACE(text, pattern, replacement, options)`
+**Parameters**:
+- `text` (string): Text to process
+- `pattern` (string): Pattern to replace
+- `replacement` (string): Replacement text
+- `options` (object): Replacement options (global, case_sensitive, regex)
+
+**Return Value**: String - Text with replacements
+**Implementation Logic**:
+```rust
+fn text_replace(text: &str, pattern: &str, replacement: &str, options: ReplaceOptions) -> String {
+    if options.regex {
+        let regex = Regex::new(pattern).unwrap();
+        if options.global {
+            regex.replace_all(text, replacement).to_string()
+        } else {
+            regex.replace(text, replacement).to_string()
+        }
+    } else {
+        if options.global {
+            text.replace(pattern, replacement)
+        } else {
+            text.replacen(pattern, replacement, 1)
+        }
+    }
+}
+```
+**Use Cases**: Data cleaning, text standardization
+**Performance**: O(n) where n is string length
+
+#### TEXT_CLEAN
+**Purpose**: Comprehensive text cleaning with multiple operations
+**Syntax**: `TEXT_CLEAN(text, operations)`
+**Parameters**:
+- `text` (string): Text to clean
+- `operations` (array): Array of cleaning operations
+
+**Return Value**: String - Cleaned text
+**Implementation Logic**:
+```rust
+fn text_clean(text: &str, operations: Vec<CleanOperation>) -> String {
+    let mut result = text.to_string();
+    for op in operations {
+        match op {
+            CleanOperation::Trim => result = result.trim().to_string(),
+            CleanOperation::NormalizeSpaces => {
+                result = result.split_whitespace().collect::<Vec<&str>>().join(" ");
+            }
+            CleanOperation::RemoveSpecialChars => {
+                result = result.chars().filter(|c| c.is_alphanumeric() || c.is_whitespace()).collect();
+            }
+            CleanOperation::UnicodeNormalize(form) => {
+                result = unicode_normalize(&result, &form);
+            }
+        }
+    }
+    result
+}
+```
+**Use Cases**: Data preprocessing, text standardization
+**Performance**: O(n * m) where n is string length, m is number of operations
+
+### File Operations
+
+#### EXCEL_EXPORT
+**Purpose**: Export data to Excel with multiple sheets
+**Syntax**: `EXCEL_EXPORT(data, file_path, sheets)`
+**Parameters**:
+- `data` (object): Data to export (key-value pairs for sheets)
+- `file_path` (string): Output file path
+- `sheets` (array): Sheet configurations
+
+**Return Value**: Boolean - Success status
+**Implementation Logic**:
+```rust
+fn excel_export(data: HashMap<String, DataFrame>, file_path: &str, sheets: Vec<SheetConfig>) -> bool {
+    let mut workbook = Workbook::new();
+    
+    for (sheet_name, df) in data {
+        let mut worksheet = workbook.add_worksheet(Some(&sheet_name));
+        
+        // Write headers
+        for (col, header) in df.columns().iter().enumerate() {
+            worksheet.write_string(0, col as u16, header, None).unwrap();
+        }
+        
+        // Write data
+        for (row, record) in df.iter_rows().enumerate() {
+            for (col, value) in record.iter().enumerate() {
+                match value {
+                    Value::String(s) => worksheet.write_string((row + 1) as u32, col as u16, s, None).unwrap(),
+                    Value::Number(n) => worksheet.write_number((row + 1) as u32, col as u16, *n, None).unwrap(),
+                    _ => {}
+                }
+            }
+        }
+    }
+    
+    workbook.save(file_path).is_ok()
+}
+```
+**Use Cases**: Data export, report generation
+**Performance**: O(n * m) where n is rows, m is columns
+
+#### FILE_CHUNK
+**Purpose**: Split large datasets into manageable chunks
+**Syntax**: `FILE_CHUNK(data, chunk_size, output_dir)`
+**Parameters**:
+- `data` (dataframe): Dataset to chunk
+- `chunk_size` (number): Number of rows per chunk
+- `output_dir` (string): Output directory for chunks
+
+**Return Value**: Array - List of created chunk files
+**Implementation Logic**:
+```rust
+fn file_chunk(data: DataFrame, chunk_size: usize, output_dir: &str) -> Vec<String> {
+    let mut chunk_files = Vec::new();
+    let total_rows = data.height();
+    
+    for (chunk_idx, chunk) in data.chunks(chunk_size).enumerate() {
+        let filename = format!("{}/chunk_{}.csv", output_dir, chunk_idx);
+        chunk.write_csv(&filename).unwrap();
+        chunk_files.push(filename);
+    }
+    
+    chunk_files
+}
+```
+**Use Cases**: Large dataset processing, memory management
+**Performance**: O(n) where n is number of rows
+
+#### CSV_IMPORT
+**Purpose**: Import CSV files with advanced options
+**Syntax**: `CSV_IMPORT(file_path, options)`
+**Parameters**:
+- `file_path` (string): Path to CSV file
+- `options` (object): Import options (delimiter, encoding, headers, etc.)
+
+**Return Value**: DataFrame - Imported data
+**Implementation Logic**:
+```rust
+fn csv_import(file_path: &str, options: ImportOptions) -> DataFrame {
+    let mut reader = CsvReader::from_path(file_path)
+        .unwrap()
+        .with_delimiter(options.delimiter as u8)
+        .with_encoding(CsvEncoding::Utf8);
+    
+    if options.has_headers {
+        reader = reader.has_header(true);
+    }
+    
+    reader.finish().unwrap()
+}
+```
+**Use Cases**: Data import, file processing
+**Performance**: O(n) where n is file size
+
+### Data Type Operations
+
+#### CONVERT_TYPE
+**Purpose**: Convert data types with error handling
+**Syntax**: `CONVERT_TYPE(value, target_type, default_value?)`
+**Parameters**:
+- `value` (any): Value to convert
+- `target_type` (string): Target data type
+- `default_value` (any, optional): Default value if conversion fails
+
+**Return Value**: Any - Converted value
+**Implementation Logic**:
+```rust
+fn convert_type(value: &Value, target_type: &str, default: Option<Value>) -> Value {
+    match target_type {
+        "string" => match value {
+            Value::String(s) => Value::String(s.clone()),
+            Value::Number(n) => Value::String(n.to_string()),
+            _ => default.unwrap_or(Value::String("".to_string())),
+        },
+        "number" => match value {
+            Value::Number(n) => Value::Number(*n),
+            Value::String(s) => s.parse().map(Value::Number).unwrap_or_else(|_| default.unwrap_or(Value::Number(0.0))),
+            _ => default.unwrap_or(Value::Number(0.0)),
+        },
+        "boolean" => match value {
+            Value::Boolean(b) => Value::Boolean(*b),
+            Value::String(s) => Value::Boolean(s.parse().unwrap_or(false)),
+            Value::Number(n) => Value::Boolean(*n != 0.0),
+            _ => default.unwrap_or(Value::Boolean(false)),
+        },
+        _ => value.clone(),
+    }
+}
+```
+**Use Cases**: Data type conversion, data validation
+**Performance**: O(1)
+
+#### IS_NUMERIC
+**Purpose**: Check if value is numeric
+**Syntax**: `IS_NUMERIC(value)`
+**Parameters**:
+- `value` (any): Value to check
+
+**Return Value**: Boolean - True if numeric
+**Implementation Logic**:
+```rust
+fn is_numeric(value: &Value) -> bool {
+    match value {
+        Value::Number(_) => true,
+        Value::String(s) => s.parse::<f64>().is_ok(),
+        _ => false,
+    }
+}
+```
+**Use Cases**: Data validation, type checking
+**Performance**: O(1)
+
+#### IS_EMPTY
+**Purpose**: Check if value is empty or null
+**Syntax**: `IS_EMPTY(value)`
+**Parameters**:
+- `value` (any): Value to check
+
+**Return Value**: Boolean - True if empty
+**Implementation Logic**:
+```rust
+fn is_empty(value: &Value) -> bool {
+    match value {
+        Value::Null => true,
+        Value::String(s) => s.is_empty(),
+        Value::Array(a) => a.is_empty(),
+        _ => false,
+    }
+}
+```
+**Use Cases**: Data validation, filtering
+**Performance**: O(1)
 
 ---
 
@@ -973,5 +1259,5 @@ This comprehensive formula reference provides the foundation for building the mo
 
 *Last Updated: December 2024*
 *Version: 1.0.0*
-*Total Formulas: 250+*
+*Total Formulas: 270+*
 *Implementation Timeline: 20 months*

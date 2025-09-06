@@ -8,6 +8,7 @@
 - **Rust**: 1.70.0 or higher
 - **Git**: Latest version
 - **Electron**: 28.3.3 (installed via npm)
+- **rustc**: For formula code compilation testing
 
 ### System Requirements
 - **Operating System**: macOS 10.15+, Windows 10+, Ubuntu 18.04+
@@ -707,6 +708,200 @@ paths:
                 items:
                   $ref: '#/components/schemas/Project'
 ```
+
+## 🧮 Formula Engine Development
+
+### Overview
+The Formula Engine is a modular system that allows for dynamic formula registration, execution, and code management. It consists of frontend configuration interfaces and backend Rust executors.
+
+### Architecture
+```
+Frontend (React)          Backend (Rust)
+┌─────────────────┐       ┌─────────────────┐
+│ Formula Config  │ ◄────► │ Dynamic Engine  │
+│ - Status Display│       │ - Registration  │
+│ - Code Editor   │       │ - Execution     │
+│ - Template Gen  │       │ - Validation    │
+└─────────────────┘       └─────────────────┘
+┌─────────────────┐       ┌─────────────────┐
+│ Playground      │ ◄────► │ Code Manager    │
+│ - Parameter UI  │       │ - Storage       │
+│ - Live Preview  │       │ - Compilation   │
+│ - Result Display│       │ - Testing       │
+└─────────────────┘       └─────────────────┘
+```
+
+### Adding a New Formula
+
+#### 1. Backend Implementation
+Create a new executor in `backend/src/formula_executor_generator.rs`:
+
+```rust
+fn generate_my_formula_executor() -> String {
+    r#"use anyhow::{Result, anyhow};
+use serde_json::Value;
+use std::collections::HashMap;
+
+pub struct MyFormulaExecutor;
+
+impl FormulaExecutor for MyFormulaExecutor {
+    fn execute(&self, data: &[HashMap<String, Value>], parameters: &HashMap<String, Value>) -> Result<Vec<HashMap<String, Value>>> {
+        // Your implementation here
+        Ok(data.to_vec())
+    }
+
+    fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<()> {
+        // Parameter validation
+        Ok(())
+    }
+
+    fn get_output_columns(&self, _parameters: &HashMap<String, Value>) -> Vec<String> {
+        vec!["my_formula_result".to_string()]
+    }
+}"#.to_string()
+}
+```
+
+#### 2. Frontend Configuration
+Add formula definition in `frontend/src/utils/formulaService.ts`:
+
+```typescript
+{
+  name: 'MY_FORMULA',
+  category: 'Custom',
+  description: 'My custom formula',
+  syntax: 'MY_FORMULA [param1 -> param2]',
+  parameters: [
+    { name: 'param1', type: 'column', description: 'First parameter', required: true },
+    { name: 'param2', type: 'text', description: 'Second parameter', required: true }
+  ],
+  examples: ['MY_FORMULA [Column1 -> "value"]']
+}
+```
+
+#### 3. Register Formula
+Add to the generator's `generate_specific_executor` method:
+
+```rust
+"MY_FORMULA" => Ok(Self::generate_my_formula_executor()),
+```
+
+### Testing Formula Code
+
+#### 1. Using the Code Editor
+1. Navigate to Formula Configuration page
+2. Select your formula
+3. Click "Show Code Editor"
+4. Click "Generate Template" to get starter code
+5. Edit the code as needed
+6. Click "Test Code" to validate compilation
+7. Click "Save Code" to make it available
+
+#### 2. Manual Testing
+```bash
+# Test compilation
+cd backend
+cargo check
+
+# Test specific formula
+curl -X POST "http://localhost:5002/api/formulas/MY_FORMULA/test" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "your_rust_code_here"}'
+```
+
+### Formula Development Best Practices
+
+#### 1. Parameter Validation
+Always validate required parameters:
+```rust
+fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<()> {
+    if !parameters.contains_key("required_param") {
+        return Err(anyhow!("Missing required parameter: required_param"));
+    }
+    Ok(())
+}
+```
+
+#### 2. Error Handling
+Provide clear error messages:
+```rust
+let value = parameters.get("param")
+    .and_then(|v| v.as_str())
+    .ok_or_else(|| anyhow!("Missing or invalid parameter: param"))?;
+```
+
+#### 3. Output Column Naming
+Use consistent naming conventions:
+```rust
+fn get_output_columns(&self, _parameters: &HashMap<String, Value>) -> Vec<String> {
+    vec!["formula_name_result".to_string()]
+}
+```
+
+#### 4. Data Processing
+Handle different data types gracefully:
+```rust
+let result = value.as_str()
+    .map(|s| s.to_uppercase())
+    .unwrap_or_else(|| value.to_string().to_uppercase());
+```
+
+### Debugging Formula Issues
+
+#### 1. Compilation Errors
+- Check syntax in the code editor
+- Use "Test Code" button for detailed error messages
+- Ensure all required imports are present
+
+#### 2. Runtime Errors
+- Check parameter validation logic
+- Verify data type handling
+- Review error messages in backend logs
+
+#### 3. Output Issues
+- Verify `get_output_columns` implementation
+- Check output column naming consistency
+- Ensure data is properly added to result
+
+### Formula Engine API Testing
+
+#### 1. List Formulas
+```bash
+curl -X GET "http://localhost:5002/api/formulas/config"
+```
+
+#### 2. Execute Formula
+```bash
+curl -X POST "http://localhost:5002/api/formulas/execute" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "formula_name": "TEXT_JOIN",
+    "data": [{"col1": "value1", "col2": "value2"}],
+    "parameters": {"delimiter": ", ", "text_values": ["col1", "col2"]}
+  }'
+```
+
+#### 3. Generate Template
+```bash
+curl -X GET "http://localhost:5002/api/formulas/MY_FORMULA/generate"
+```
+
+### Performance Considerations
+
+#### 1. Memory Usage
+- Minimize data copying in executors
+- Use efficient data structures
+- Handle large datasets appropriately
+
+#### 2. Processing Speed
+- Optimize hot paths in formula logic
+- Use appropriate algorithms for data processing
+- Consider parallel processing for large datasets
+
+#### 3. Error Recovery
+- Implement graceful error handling
+- Provide meaningful error messages
+- Log errors for debugging
 
 ## 🐛 Troubleshooting
 

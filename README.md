@@ -20,6 +20,9 @@
 - **💾 Multi-database Support**: SQLite, PostgreSQL, MongoDB
 - **🔒 Memory Safe**: Rust's memory safety guarantees
 - **📦 Single Executable**: No dependency issues, easy deployment
+- **🧮 Modular Formula Engine**: 20+ built-in formulas with backend code editing
+- **⚡ Real-time Code Testing**: Compile and test formula code instantly
+- **🎯 Formula Control Center**: Visual status tracking and template generation
 
 ## 🛠️ Tech Stack
 
@@ -29,6 +32,8 @@
 - **Database**: SQLx, diesel
 - **Serialization**: Serde
 - **Async Runtime**: Tokio
+- **Formula Engine**: Dynamic formula registration and execution
+- **Code Management**: Real-time compilation and testing
 
 ### Frontend (React + Electron)
 - **UI Framework**: React 18
@@ -36,6 +41,8 @@
 - **Charts**: D3.js, Chart.js
 - **State Management**: React hooks
 - **Styling**: Tailwind CSS
+- **Formula Editor**: Real-time Rust code editing
+- **Code Testing**: Integrated compilation testing
 
 ## 🚀 Quick Start
 
@@ -149,11 +156,14 @@ npm run build:electron:win      # Windows (.exe, .msi, .portable)
 ## 📈 Roadmap
 
 - [x] Project setup
-- [ ] Rust backend core
-- [ ] React frontend
-- [ ] Electron integration
-- [ ] Data processing engine
-- [ ] Workflow automation
+- [x] Rust backend core
+- [x] React frontend
+- [x] Electron integration
+- [x] Data processing engine
+- [x] Workflow automation
+- [x] Modular formula engine
+- [x] Backend code editing
+- [x] Real-time code testing
 - [ ] Advanced visualizations
 - [ ] Performance optimization
 - [ ] Distribution packaging

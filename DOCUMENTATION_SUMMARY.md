@@ -125,11 +125,13 @@ This document provides an overview of all the comprehensive documentation create
 - Documentation standards
 - Troubleshooting guide
 - Future development roadmap
+- **Formula Engine Development** (NEW)
 
 **Key Sections:**
 - 🚀 Getting Started
 - 🛠️ Development Environment Setup
 - 🔧 Development Workflow
+- 🧮 Formula Engine Development (NEW)
 - 🧪 Testing Strategy
 - 🔍 Debugging
 - 📦 Building and Packaging
@@ -148,6 +150,52 @@ This document provides an overview of all the comprehensive documentation create
 
 ---
 
+### 5. FORMULA_ENGINE_DOCUMENTATION.md (NEW)
+**Comprehensive Formula Engine documentation covering:**
+- Complete architecture overview
+- All 20+ available formulas with detailed descriptions
+- Backend implementation patterns
+- Frontend integration guide
+- API endpoints for formula management
+- Code generation and template system
+- Real-time compilation testing
+- Development workflow for adding new formulas
+- Best practices and troubleshooting
+- Performance considerations
+
+**Key Sections:**
+- 🏗️ Architecture
+- 📊 Available Formulas (20+ formulas documented)
+- 🔧 Backend Implementation
+- 🎨 Frontend Integration
+- 🚀 API Endpoints
+- 📝 Usage Examples
+- 🔧 Development Workflow
+- 🐛 Troubleshooting
+- 📚 Best Practices
+- 🔮 Future Enhancements
+
+**Formula Categories Documented:**
+- Text Functions (TEXT_JOIN, UPPER, LOWER, TRIM, etc.)
+- Mathematical Functions (ADD, SUBTRACT, MULTIPLY, DIVIDE, SUM)
+- Statistical Functions (COUNT, UNIQUE_COUNT, SUMIF, COUNTIF)
+- Conditional Functions (IF)
+- Data Transformation (PIVOT, DEPIVOT, REMOVE_DUPLICATES, FILLNA)
+
+---
+
+### 6. FORMULA_CONFIGURATION_DOCUMENTATION.md
+**Detailed Formula Configuration system documentation covering:**
+- Complete configuration interface guide
+- Parameter mapping and UI customization
+- Card layout customization options
+- Backend integration workflow
+- Real-world usage examples
+- Step-by-step configuration process
+- Troubleshooting common issues
+
+---
+
 ## 🎯 Documentation Coverage
 
 ### Complete Coverage Areas ✅
@@ -161,6 +209,8 @@ This document provides an overview of all the comprehensive documentation create
 - **Architecture Diagrams**: 100% covered
 - **Configuration Management**: 100% covered
 - **Troubleshooting**: 100% covered
+- **Formula Engine**: 100% covered (NEW)
+- **Code Management**: 100% covered (NEW)
 
 ### Documentation Standards Implemented ✅
 - **JSDoc Comments**: All public functions documented
@@ -187,7 +237,10 @@ This document provides an overview of all the comprehensive documentation create
 ### Backend Features
 - **Rust 1.70+** with Actix-web 4.0
 - **Workflow Engine** for data processing
-- **Formula Evaluator** for mathematical expressions
+- **Modular Formula Engine** with 20+ built-in formulas (NEW)
+- **Dynamic Formula Registration** and execution (NEW)
+- **Real-time Code Compilation** and testing (NEW)
+- **Formula Code Management** system (NEW)
 - **Data Processor** for transformations and filtering
 - **File Handler** for multiple format support
 - **Real-time Communication** via WebSockets
@@ -208,16 +261,19 @@ This document provides an overview of all the comprehensive documentation create
 - **PROJECT_OVERVIEW.md**: ~15KB (comprehensive project overview)
 - **COMPONENT_DOCUMENTATION.md**: ~25KB (detailed component docs)
 - **BACKEND_DOCUMENTATION.md**: ~30KB (complete backend docs)
-- **DEVELOPMENT_GUIDE.md**: ~35KB (development and deployment)
-- **Total Documentation**: ~105KB of comprehensive documentation
+- **DEVELOPMENT_GUIDE.md**: ~40KB (development and deployment + Formula Engine)
+- **FORMULA_ENGINE_DOCUMENTATION.md**: ~25KB (comprehensive formula engine docs) (NEW)
+- **FORMULA_CONFIGURATION_DOCUMENTATION.md**: ~20KB (configuration system docs)
+- **Total Documentation**: ~155KB of comprehensive documentation
 
 ### Content Breakdown
-- **Code Examples**: 50+ practical examples
-- **API Endpoints**: 20+ documented endpoints
-- **Components**: 15+ React components documented
-- **Configuration**: 10+ configuration examples
-- **Troubleshooting**: 15+ common issues and solutions
-- **Architecture Diagrams**: 5+ visual architecture representations
+- **Code Examples**: 80+ practical examples (including Formula Engine)
+- **API Endpoints**: 30+ documented endpoints (including Formula Engine APIs)
+- **Components**: 20+ React components documented (including Formula Code Editor)
+- **Formulas**: 20+ formulas with complete documentation (NEW)
+- **Configuration**: 15+ configuration examples
+- **Troubleshooting**: 25+ common issues and solutions
+- **Architecture Diagrams**: 8+ visual architecture representations
 
 ---
 

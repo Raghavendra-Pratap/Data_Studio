@@ -728,6 +728,348 @@ All API responses follow a consistent format:
 
 ---
 
+## 🧮 Formula Engine Endpoints
+
+### GET /api/formulas/config
+**Purpose**: Get all formula configurations
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "formulas": [
+      {
+        "id": "text_join",
+        "name": "TEXT_JOIN",
+        "category": "Text & String",
+        "description": "Joins text values together with optional delimiter",
+        "syntax": "TEXT_JOIN [delimiter -> ignore_empty -> text1 -> text2 -> ...]",
+        "tip": "Select a delimiter and text columns to join",
+        "parameters": [
+          {
+            "name": "delimiter",
+            "type": "text",
+            "label": "Delimiter",
+            "description": "Character(s) placed between joined texts",
+            "required": true,
+            "default_value": ",",
+            "placeholder": "Enter delimiter"
+          }
+        ],
+        "examples": ["TEXT_JOIN [\", \" -> TRUE -> City -> State -> Country]"],
+        "isActive": true,
+        "backendStatus": "implemented",
+        "lastCompiled": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "count": 20
+  },
+  "message": "Formulas retrieved successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### POST /api/formulas/config
+**Purpose**: Create or update formula configuration
+
+**Request Body**:
+```json
+{
+  "name": "CUSTOM_FORMULA",
+  "category": "Custom",
+  "description": "Custom formula implementation",
+  "syntax": "CUSTOM [param1 -> param2]",
+  "tip": "Custom formula tip",
+  "parameters": [
+    {
+      "name": "param1",
+      "type": "text",
+      "label": "Parameter 1",
+      "description": "First parameter",
+      "required": true
+    }
+  ],
+  "examples": ["CUSTOM [value1 -> value2]"],
+  "isActive": true
+}
+```
+
+**Response**: Created/updated formula configuration
+
+---
+
+### POST /api/formulas/execute
+**Purpose**: Execute a formula with data
+
+**Request Body**:
+```json
+{
+  "formula_name": "TEXT_JOIN",
+  "data": [
+    {"City": "New York", "State": "NY", "Country": "USA"},
+    {"City": "Los Angeles", "State": "CA", "Country": "USA"}
+  ],
+  "parameters": {
+    "delimiter": ", ",
+    "ignore_empty": true,
+    "text_values": ["City", "State", "Country"]
+  },
+  "output_config": {
+    "output_column": "full_address",
+    "include_metadata": true,
+    "sample_size": 10
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "status": "success",
+    "data": [
+      {"City": "New York", "State": "NY", "Country": "USA", "full_address": "New York, NY, USA"},
+      {"City": "Los Angeles", "State": "CA", "Country": "USA", "full_address": "Los Angeles, CA, USA"}
+    ],
+    "metadata": {
+      "formula_name": "TEXT_JOIN",
+      "processing_time_ms": 15,
+      "input_rows": 2,
+      "output_rows": 2
+    },
+    "processing_time_ms": 15,
+    "formula_name": "TEXT_JOIN",
+    "error_message": null
+  },
+  "message": "Formula executed successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### GET /api/formulas/registered
+**Purpose**: Get all registered formulas
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "formulas": [
+      {
+        "name": "TEXT_JOIN",
+        "category": "Text & String",
+        "description": "Joins text values together",
+        "isActive": true
+      }
+    ],
+    "count": 20,
+    "timestamp": "2024-01-01T00:00:00Z"
+  },
+  "message": "Registered formulas retrieved",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### GET /api/formulas/active
+**Purpose**: Get only active formulas
+
+**Response**: Similar to registered formulas but filtered for active status
+
+---
+
+### POST /api/formulas/{formula_name}/status
+**Purpose**: Enable or disable a formula
+
+**Path Parameters**:
+- `formula_name`: Name of the formula
+
+**Request Body**:
+```json
+{
+  "is_active": true
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "formula_name": "TEXT_JOIN",
+    "is_active": true
+  },
+  "message": "Formula status updated",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+## 🔧 Formula Code Management Endpoints
+
+### POST /api/formulas/{formula_name}/code
+**Purpose**: Save formula backend code
+
+**Path Parameters**:
+- `formula_name`: Name of the formula
+
+**Request Body**:
+```json
+{
+  "code": "use anyhow::{Result, anyhow};\nuse serde_json::Value;\nuse std::collections::HashMap;\n\npub struct TextJoinExecutor;\n\nimpl FormulaExecutor for TextJoinExecutor {\n    fn execute(&self, data: &[HashMap<String, Value>], parameters: &HashMap<String, Value>) -> Result<Vec<HashMap<String, Value>>> {\n        // Implementation here\n        Ok(data.to_vec())\n    }\n    \n    fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<()> {\n        // Validation here\n        Ok(())\n    }\n    \n    fn get_output_columns(&self, _parameters: &HashMap<String, Value>) -> Vec<String> {\n        vec![\"text_join_result\".to_string()]\n    }\n}"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Code saved successfully for formula: TEXT_JOIN",
+    "formula_name": "TEXT_JOIN",
+    "saved_at": "2024-01-01T00:00:00Z"
+  },
+  "message": "Code saved successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### GET /api/formulas/{formula_name}/code
+**Purpose**: Get formula backend code
+
+**Path Parameters**:
+- `formula_name`: Name of the formula
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "formula_name": "TEXT_JOIN",
+    "code": "use anyhow::{Result, anyhow};\n// ... full code here"
+  },
+  "message": "Code retrieved successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### POST /api/formulas/{formula_name}/test
+**Purpose**: Test formula code compilation
+
+**Path Parameters**:
+- `formula_name`: Name of the formula
+
+**Request Body**:
+```json
+{
+  "code": "use anyhow::{Result, anyhow};\n// ... code to test"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Code compiled successfully",
+    "compilation_time_ms": 150,
+    "errors": []
+  },
+  "message": "Code test completed",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+**Error Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": false,
+    "message": "Compilation failed",
+    "compilation_time_ms": 50,
+    "errors": [
+      "error: expected one of `!` or `::`, found keyword `use`",
+      " --> src/formula.rs:1:1",
+      "  |",
+      "1 | use anyhow::{Result, anyhow};",
+      "  | ^^^ expected one of `!` or `::`"
+    ]
+  },
+  "message": "Code test completed",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### GET /api/formulas/{formula_name}/generate
+**Purpose**: Generate code template for formula
+
+**Path Parameters**:
+- `formula_name`: Name of the formula
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "formula_name": "TEXT_JOIN",
+    "code": "use anyhow::{Result, anyhow};\nuse serde_json::Value;\nuse std::collections::HashMap;\n\npub struct TextJoinExecutor;\n\nimpl FormulaExecutor for TextJoinExecutor {\n    fn execute(&self, data: &[HashMap<String, Value>], parameters: &HashMap<String, Value>) -> Result<Vec<HashMap<String, Value>>> {\n        let delimiter = parameters.get(\"delimiter\")\n            .and_then(|v| v.as_str())\n            .unwrap_or(\",\");\n        \n        // ... full generated template\n    }\n    \n    fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<()> {\n        // ... validation code\n    }\n    \n    fn get_output_columns(&self, _parameters: &HashMap<String, Value>) -> Vec<String> {\n        vec![\"text_join_result\".to_string()]\n    }\n}",
+    "message": "Code template generated successfully"
+  },
+  "message": "Template generated successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
+### GET /api/formulas/code
+**Purpose**: List all formula codes
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "formulas": ["TEXT_JOIN", "UPPER", "LOWER", "SUM", "COUNT"],
+    "count": 5
+  },
+  "message": "Formula codes listed successfully",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0.8"
+}
+```
+
+---
+
 ## 📈 Analytics Endpoints
 
 ### POST /api/analytics/summary
